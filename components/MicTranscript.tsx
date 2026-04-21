@@ -8,13 +8,23 @@ import { TranscriptLine } from "./TranscriptLine"
 import { toast } from "sonner"
 import { Mic, MicOff, ChevronDown } from "lucide-react"
 
+function getAudioExtension(blob: Blob): string {
+  const type = blob.type.toLowerCase()
+  if (type.includes("webm")) return "webm"
+  if (type.includes("ogg")) return "ogg"
+  if (type.includes("mp4") || type.includes("m4a")) return "m4a"
+  if (type.includes("mpeg")) return "mp3"
+  return "webm"
+}
+
 async function transcribeBlob(
   blob: Blob,
   apiKey: string,
   signal?: AbortSignal
 ): Promise<string> {
   const formData = new FormData()
-  formData.append("file", blob, `audio.${blob.type.includes("webm") ? "webm" : "mp4"}`)
+  const ext = getAudioExtension(blob)
+  formData.append("file", blob, `audio.${ext}`)
   const res = await fetch("/api/transcribe", {
     method: "POST",
     headers: { "x-groq-api-key": apiKey },
@@ -48,6 +58,8 @@ export function MicTranscript() {
   const processingRef = useRef(false)
   const abortRef = useRef<AbortController | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const isStoppingRef = useRef(false)
 
   const processQueue = useCallback(async () => {
     if (processingRef.current || queueRef.current.length === 0) return
@@ -69,9 +81,23 @@ export function MicTranscript() {
     processingRef.current = false
   }, [settings.apiKey, addTranscriptLine])
 
+  useEffect(() => {
+    const flush = () => {
+      if (recorderRef.current && recorderRef.current.state === "recording") {
+        recorderRef.current.requestData()
+      }
+    }
+    useAppStore.setState({ flushRecording: flush })
+    return () => {
+      useAppStore.setState({ flushRecording: () => {} })
+    }
+  }, [])
+
   const handleToggle = useCallback(async () => {
     if (isRecording) {
+      isStoppingRef.current = true
       stopRecording()
+      recorderRef.current = null
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop())
         streamRef.current = null
@@ -105,6 +131,19 @@ export function MicTranscript() {
       const recorder = createMediaRecorder(stream, (blob) => {
         queueRef.current.push(blob)
         processQueue()
+      })
+
+      recorderRef.current = recorder
+
+      recorder.addEventListener("dataavailable", () => {
+        if (!isStoppingRef.current) {
+          useAppStore.getState().setCountdown(30)
+        }
+      })
+
+      recorder.addEventListener("stop", () => {
+        isStoppingRef.current = false
+        recorderRef.current = null
       })
 
       recorder.start(30000)

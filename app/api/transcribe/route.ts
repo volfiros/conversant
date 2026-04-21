@@ -10,14 +10,17 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
     const file = formData.get("file") as File | null
-    if (!file) {
+    if (!file || file.size === 0) {
       return NextResponse.json({ error: "No audio file provided" }, { status: 400 })
     }
+
+    const bytes = await file.arrayBuffer()
+    const audioFile = new File([bytes], file.name || "audio.webm", { type: file.type || "audio/webm" })
 
     const groq = new Groq({ apiKey })
     const result = await groq.audio.transcriptions.create({
       model: "whisper-large-v3",
-      file,
+      file: audioFile,
     })
 
     return NextResponse.json({ text: result.text })

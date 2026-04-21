@@ -11,6 +11,8 @@ export function getSupportedMimeType(): string {
   return ""
 }
 
+const MIN_BLOB_SIZE = 256
+
 export function createMediaRecorder(
   stream: MediaStream,
   onDataAvailable: (blob: Blob) => void
@@ -22,7 +24,7 @@ export function createMediaRecorder(
   const recorder = new MediaRecorder(stream, options)
 
   recorder.ondataavailable = (e) => {
-    if (e.data.size > 0) {
+    if (e.data.size > MIN_BLOB_SIZE) {
       onDataAvailable(e.data)
     }
   }

@@ -56,6 +56,7 @@ export function LiveSuggestions() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const sendToChatRef = useRef<((text: string, type: string) => void) | null>(null)
   const [showBanner, setShowBanner] = useState(true)
+  const prevTranscriptLen = useRef(transcript.length)
 
   const doFetch = useCallback(async () => {
     if (transcript.length === 0 || !settings.apiKey) return
@@ -90,33 +91,34 @@ export function LiveSuggestions() {
         addSuggestionBatch(batch)
         setShowBanner(false)
       }
-      setCountdown(30)
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return
       toast.error("Failed to fetch suggestions")
     } finally {
       setSuggestionLoading(false)
     }
-  }, [transcript, settings, suggestionAbortController])
+  }, [transcript, settings, suggestionAbortController, addSuggestionBatch, setSuggestionLoading, setSuggestionAbortController, setShowBanner])
+
+  useEffect(() => {
+    if (transcript.length > prevTranscriptLen.current && prevTranscriptLen.current >= 0) {
+      doFetch()
+    }
+    prevTranscriptLen.current = transcript.length
+  }, [transcript, doFetch])
 
   useEffect(() => {
     if (isRecording && transcript.length > 0) {
       timerRef.current = setInterval(() => {
-        const state = useAppStore.getState()
-        if (state.countdown <= 1) {
-          doFetch()
-        } else {
-          state.decrementCountdown()
-        }
+        useAppStore.getState().decrementCountdown()
       }, 1000)
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [isRecording, transcript.length, doFetch])
+  }, [isRecording, transcript.length])
 
   const handleRefresh = () => {
-    doFetch()
+    useAppStore.getState().flushRecording()
   }
 
   const setSendToChat = useCallback((fn: (text: string, type: string) => void) => {

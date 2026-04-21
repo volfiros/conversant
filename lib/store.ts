@@ -61,6 +61,8 @@ interface AppState {
   decrementCountdown: () => void
   setSuggestionAbortController: (c: AbortController | null) => void
 
+  flushRecording: () => void
+
   chatMessages: ChatMessage[]
   isChatStreaming: boolean
   chatAbortController: AbortController | null
@@ -125,6 +127,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCountdown: (v) => set({ countdown: v }),
   decrementCountdown: () => set({ countdown: Math.max(0, get().countdown - 1) }),
   setSuggestionAbortController: (c) => set({ suggestionAbortController: c }),
+
+  flushRecording: () => {},
 
   chatMessages: [],
   isChatStreaming: false,
