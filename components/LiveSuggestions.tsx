@@ -56,7 +56,7 @@ export function LiveSuggestions() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const sendToChatRef = useRef<((text: string, type: string) => void) | null>(null)
   const [showBanner, setShowBanner] = useState(true)
-  const prevTranscriptLen = useRef(transcript.length)
+  const prevTranscriptLen = useRef(-1)
 
   const doFetch = useCallback(async () => {
     if (transcript.length === 0 || !settings.apiKey) return
@@ -100,20 +100,21 @@ export function LiveSuggestions() {
   }, [transcript, settings, suggestionAbortController, addSuggestionBatch, setSuggestionLoading, setSuggestionAbortController, setShowBanner])
 
   useEffect(() => {
-    if (transcript.length > prevTranscriptLen.current && prevTranscriptLen.current >= 0) {
+    if (transcript.length > prevTranscriptLen.current && prevTranscriptLen.current !== -1) {
       doFetch()
     }
     prevTranscriptLen.current = transcript.length
   }, [transcript, doFetch])
 
   useEffect(() => {
-    if (isRecording && transcript.length > 0) {
+    if (isRecording && transcript.length > 0 && !timerRef.current) {
       timerRef.current = setInterval(() => {
         useAppStore.getState().decrementCountdown()
       }, 1000)
     }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
+    if (!isRecording && timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
     }
   }, [isRecording, transcript.length])
 
