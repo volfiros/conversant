@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useAppStore } from "@/lib/store"
+import { useScrollToBottom } from "@/lib/useScrollToBottom"
 import { ChatMessage } from "./ChatMessage"
 import { SUGGESTION_TYPE_LABELS } from "@/lib/types"
 import type { SuggestionType } from "@/lib/types"
 import { toast } from "sonner"
-import { Send } from "lucide-react"
+import { Send, ChevronDown } from "lucide-react"
 
 async function streamChat(
   apiKey: string,
@@ -76,14 +77,10 @@ export function ChatPanel() {
   } = useAppStore()
 
   const [input, setInput] = useState("")
-  const bodyRef = useRef<HTMLDivElement>(null)
   const streamingIdRef = useRef<string | null>(null)
 
-  useEffect(() => {
-    if (bodyRef.current) {
-      bodyRef.current.scrollTop = bodyRef.current.scrollHeight
-    }
-  }, [chatMessages])
+  const { scrollRef, showScrollButton, handleScroll, scrollToBottom } =
+    useScrollToBottom<HTMLDivElement>([chatMessages])
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -176,18 +173,26 @@ export function ChatPanel() {
   }
 
   return (
-    <div className="bg-panel border border-border rounded-[10px] flex flex-col overflow-hidden min-h-0">
-      <header className="px-3.5 py-2.5 border-b border-border text-xs uppercase tracking-wider text-muted flex justify-between items-center">
-        <span>3. Chat (detailed answers)</span>
-        <span>session-only</span>
+    <div className="glass-panel h-full flex flex-col overflow-hidden min-h-0 relative animate-fade-in-up stagger-3">
+      <header className="px-3.5 py-2.5 border-b border-white/[0.08] flex justify-between items-center">
+        <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.15em] uppercase text-white/40">
+          3. Chat (detailed answers)
+        </span>
+        <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.15em] uppercase text-white/40">
+          session-only
+        </span>
       </header>
-      <div ref={bodyRef} className="flex-1 overflow-y-auto p-3.5">
-        <div className="bg-accent/8 border border-accent/30 text-[#cfd3dc] px-3 py-2 text-xs rounded-md mb-3 leading-relaxed">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-3.5 carrier-scroll"
+      >
+        <div className="bg-accent-dim border border-accent/30 text-white/80 px-3 py-2 text-xs rounded-md mb-3 leading-relaxed font-[family-name:var(--font-outfit)]">
           Clicking a suggestion adds it to this chat and streams a detailed answer.
           You can also type questions directly. One continuous chat per session.
         </div>
         {chatMessages.length === 0 ? (
-          <div className="text-muted text-[13px] text-center py-8 leading-relaxed">
+          <div className="font-[family-name:var(--font-outfit)] text-sm text-white/30 text-center py-8 leading-relaxed">
             Click a suggestion or type a question below.
           </div>
         ) : (
@@ -201,8 +206,15 @@ export function ChatPanel() {
             />
           ))
         )}
+        {isChatStreaming && (
+          <div className="flex gap-1.5 items-center py-2 px-1">
+            <span className="w-2 h-2 rounded-full bg-accent animate-bounce-dot-1" />
+            <span className="w-2 h-2 rounded-full bg-accent animate-bounce-dot-2" />
+            <span className="w-2 h-2 rounded-full bg-accent animate-bounce-dot-3" />
+          </div>
+        )}
       </div>
-      <div className="px-2.5 py-2.5 border-t border-border flex gap-2">
+      <div className="px-2.5 py-2.5 border-t border-white/[0.08] flex gap-2">
         <input
           type="text"
           value={input}
@@ -210,16 +222,28 @@ export function ChatPanel() {
           onKeyDown={handleKeyDown}
           placeholder="Ask anything…"
           disabled={isChatStreaming}
-          className="flex-1 bg-panel-2 border border-border text-foreground px-2.5 py-2 rounded-md text-[13px] outline-none focus:border-accent disabled:opacity-50"
+          className="flex-1 bg-white/[0.03] border border-white/[0.08] text-white px-2.5 py-2 rounded-lg text-sm outline-none focus:bg-white/[0.05] focus:border-white/20 transition-all duration-150 font-[family-name:var(--font-outfit)] placeholder:text-white/30 disabled:opacity-50"
         />
         <button
           onClick={() => handleSend(input)}
           disabled={isChatStreaming || !input.trim()}
-          className="bg-accent text-black border-none px-3.5 py-2 rounded-md cursor-pointer text-[13px] font-medium disabled:opacity-50"
+          className={`border-none px-3.5 py-2 rounded-lg cursor-pointer text-sm font-medium transition-all duration-150 disabled:opacity-50 ${
+            input.trim() ? "bg-accent text-black" : "bg-white/[0.03] text-white/30"
+          }`}
         >
           <Send size={14} />
         </button>
       </div>
+      {showScrollButton && (
+        <button
+          onClick={scrollToBottom}
+          className="absolute bottom-16 right-4 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/70 hover:bg-white/20 hover:text-white transition-all duration-150 flex items-center justify-center shadow-lg"
+          aria-label="Scroll to bottom"
+          title="Scroll to bottom"
+        >
+          <ChevronDown size={16} />
+        </button>
+      )}
     </div>
   )
 }

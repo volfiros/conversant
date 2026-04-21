@@ -8,11 +8,21 @@ export function TopBar() {
   const { isRecording, batchCounter } = useAppStore()
 
   return (
-    <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-panel">
-      <h1 className="text-sm font-semibold tracking-wide">Conversant</h1>
-      <div className="text-xs text-muted">
-        {isRecording && <span className="text-danger mr-2">● Recording</span>}
-        {batchCounter > 0 && <span>{batchCounter} batch{batchCounter !== 1 ? "es" : ""}</span>}
+    <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 animate-fade-in" style={{ background: "rgba(0, 0, 0, 0.75)", backdropFilter: "blur(12px)" }}>
+      <h1 className="font-[family-name:var(--font-outfit)] text-xs font-semibold uppercase tracking-[0.2em]">
+        Conversant
+      </h1>
+      <div className="flex items-center gap-3">
+        {isRecording && (
+          <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.15em] uppercase text-accent animate-breathing">
+            ● Recording
+          </span>
+        )}
+        {batchCounter > 0 && (
+          <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.15em] uppercase text-white/40">
+            {batchCounter} batch{batchCounter !== 1 ? "es" : ""}
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-1">
         <ExportButton />

@@ -6,7 +6,7 @@ import { SUGGESTION_TYPE_LABELS } from "@/lib/types"
 
 const TYPE_COLORS: Record<SuggestionType, { bg: string; text: string }> = {
   question: { bg: "bg-accent/15", text: "text-accent" },
-  talking: { bg: "bg-accent-2/15", text: "text-accent-2" },
+  talking: { bg: "bg-[#b388ff]/15", text: "text-[#b388ff]" },
   answer: { bg: "bg-good/15", text: "text-good" },
   fact: { bg: "bg-warn/15", text: "text-warn" },
 }
@@ -26,16 +26,18 @@ export function SuggestionCard({ type, text, isFresh, isStale, onClick }: Sugges
   return (
     <div
       onClick={onClick}
-      className={`border rounded-lg p-3 cursor-pointer transition-all duration-150 hover:-translate-y-px hover:border-accent ${
-        isFresh ? "border-accent" : "border-border"
-      } ${isStale ? "opacity-55" : ""} bg-panel-2`}
+      className={`cursor-pointer rounded-lg p-3 transition-all duration-150 hover-lift press-effect bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.15] ${
+        isFresh ? "border-accent/20" : ""
+      } ${isStale ? "opacity-40" : ""} border`}
     >
       <span
-        className={`inline-block text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded mb-1.5 ${colors.bg} ${colors.text}`}
+        className={`font-[family-name:var(--font-mono)] inline-block text-[9px] tracking-[0.05em] uppercase rounded px-2 py-0.5 mb-1.5 ${colors.bg} ${colors.text}`}
       >
         {SUGGESTION_TYPE_LABELS[type]}
       </span>
-      <div className="text-sm font-medium leading-snug">{text}</div>
+      <div className="font-[family-name:var(--font-outfit)] text-sm font-medium leading-snug text-white/90">
+        {text}
+      </div>
     </div>
   )
 }

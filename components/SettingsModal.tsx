@@ -48,17 +48,17 @@ export function SettingsModal() {
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
       <DialogTrigger asChild>
-        <button className="p-2 rounded-md hover:bg-panel-2 transition-colors">
-          <Settings size={16} className="text-muted" />
+        <button className="p-2 rounded-lg hover:bg-white/5 transition-all duration-150">
+          <Settings size={16} className="text-white/40 hover:text-white transition-colors duration-150" />
         </button>
       </DialogTrigger>
-      <DialogContent className="bg-panel border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="glass-panel shadow-2xl text-white max-w-lg max-h-[85vh] overflow-y-auto border-white/[0.15] animate-slide-down" style={{ background: "rgba(0, 0, 0, 0.75)" }}>
         <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
+          <DialogTitle className="font-[family-name:var(--font-outfit)] text-white">Settings</DialogTitle>
         </DialogHeader>
         <div className="space-y-5 pt-2">
           <div>
-            <label className="text-xs uppercase tracking-wider text-muted mb-1.5 block">
+            <label className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em] text-white/40 mb-1.5 block">
               Groq API Key
             </label>
             <div className="relative">
@@ -69,12 +69,12 @@ export function SettingsModal() {
                   setLocalSettings({ ...localSettings, apiKey: e.target.value })
                 }
                 placeholder="gsk_..."
-                className="bg-panel-2 border-border text-foreground pr-10"
+                className="bg-white/[0.03] border-white/[0.08] text-white pr-10 focus:border-accent/50 transition-all duration-150"
               />
               <button
                 type="button"
                 onClick={() => setShowKey(!showKey)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all duration-150"
               >
                 {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -82,7 +82,7 @@ export function SettingsModal() {
           </div>
 
           <div>
-            <label className="text-xs uppercase tracking-wider text-muted mb-1.5 block">
+            <label className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em] text-white/40 mb-1.5 block">
               Suggestion Prompt
             </label>
             <Textarea
@@ -91,12 +91,12 @@ export function SettingsModal() {
                 setLocalSettings({ ...localSettings, suggestionPrompt: e.target.value })
               }
               rows={6}
-              className="bg-panel-2 border-border text-foreground text-xs"
+              className="bg-white/[0.03] border-white/[0.08] text-white text-xs focus:border-accent/50 transition-all duration-150"
             />
           </div>
 
           <div>
-            <label className="text-xs uppercase tracking-wider text-muted mb-1.5 block">
+            <label className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em] text-white/40 mb-1.5 block">
               Chat Prompt
             </label>
             <Textarea
@@ -105,13 +105,13 @@ export function SettingsModal() {
                 setLocalSettings({ ...localSettings, chatPrompt: e.target.value })
               }
               rows={6}
-              className="bg-panel-2 border-border text-foreground text-xs"
+              className="bg-white/[0.03] border-white/[0.08] text-white text-xs focus:border-accent/50 transition-all duration-150"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs uppercase tracking-wider text-muted mb-1.5 block">
+              <label className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em] text-white/40 mb-1.5 block">
                 Suggestion Context Window
               </label>
               <Input
@@ -125,11 +125,11 @@ export function SettingsModal() {
                     suggestionContextWindow: parseInt(e.target.value) || 10,
                   })
                 }
-                className="bg-panel-2 border-border text-foreground"
+                className="bg-white/[0.03] border-white/[0.08] text-white focus:border-accent/50 transition-all duration-150"
               />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wider text-muted mb-1.5 block">
+              <label className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em] text-white/40 mb-1.5 block">
                 Chat Context Window
               </label>
               <Input
@@ -143,7 +143,7 @@ export function SettingsModal() {
                     chatContextWindow: parseInt(e.target.value) || 20,
                   })
                 }
-                className="bg-panel-2 border-border text-foreground"
+                className="bg-white/[0.03] border-white/[0.08] text-white focus:border-accent/50 transition-all duration-150"
               />
             </div>
           </div>
@@ -153,12 +153,12 @@ export function SettingsModal() {
               variant="ghost"
               size="sm"
               onClick={handleReset}
-              className="text-muted hover:text-foreground"
+              className="bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-all duration-150"
             >
               <RotateCcw size={14} className="mr-1.5" />
               Reset to Defaults
             </Button>
-            <Button size="sm" onClick={handleSave}>
+            <Button size="sm" onClick={handleSave} className="bg-accent text-black hover:bg-accent/90 transition-all duration-150">
               Save Settings
             </Button>
           </div>

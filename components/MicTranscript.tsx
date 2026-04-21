@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef } from "react"
 import { useAppStore } from "@/lib/store"
+import { useScrollToBottom } from "@/lib/useScrollToBottom"
 import { getSupportedMimeType, createMediaRecorder } from "@/lib/audio"
 import { TranscriptLine } from "./TranscriptLine"
 import { toast } from "sonner"
-import { Mic, MicOff } from "lucide-react"
+import { Mic, MicOff, ChevronDown } from "lucide-react"
 
 async function transcribeBlob(
   blob: Blob,
@@ -40,7 +41,9 @@ export function MicTranscript() {
     setAbortController,
   } = useAppStore()
 
-  const bodyRef = useRef<HTMLDivElement>(null)
+  const { scrollRef, showScrollButton, handleScroll, scrollToBottom } =
+    useScrollToBottom<HTMLDivElement>([transcript])
+
   const queueRef = useRef<Blob[]>([])
   const processingRef = useRef(false)
   const abortRef = useRef<AbortController | null>(null)
@@ -116,50 +119,61 @@ export function MicTranscript() {
     }
   }, [isRecording, settings.apiKey, startRecording, stopRecording, setMediaRecorder, setAbortController, processQueue])
 
-  useEffect(() => {
-    if (bodyRef.current) {
-      bodyRef.current.scrollTop = bodyRef.current.scrollHeight
-    }
-  }, [transcript])
-
   return (
-    <div className="bg-panel border border-border rounded-[10px] flex flex-col overflow-hidden min-h-0">
-      <header className="px-3.5 py-2.5 border-b border-border text-xs uppercase tracking-wider text-muted flex justify-between items-center">
-        <span>1. Mic & Transcript</span>
-        <span>{isRecording ? "● recording" : "idle"}</span>
+    <div className="glass-panel h-full flex flex-col overflow-hidden min-h-0 relative animate-fade-in-up stagger-1">
+      <header className="px-3.5 py-2.5 border-b border-white/[0.08] flex justify-between items-center">
+        <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.15em] uppercase text-white/40">
+          1. Mic & Transcript
+        </span>
+        <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.15em] uppercase text-white/40">
+          {isRecording ? "● recording" : "idle"}
+        </span>
       </header>
-      <div className="flex items-center gap-2.5 px-3.5 py-3.5 border-b border-border">
+      <div className="flex items-center gap-2.5 px-3.5 py-3.5">
         <button
           onClick={handleToggle}
-          className={`w-11 h-11 rounded-full border-none cursor-pointer flex items-center justify-center text-lg transition-colors ${
+          className={`w-11 h-11 rounded-full border-none cursor-pointer flex items-center justify-center text-lg transition-all duration-300 ${
             isRecording
-              ? "bg-danger text-white animate-pulse-ring"
+              ? "bg-danger text-white animate-ripple"
               : "bg-accent text-black"
           }`}
           title={isRecording ? "Stop recording" : "Start recording"}
         >
           {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
         </button>
-        <div className="text-[13px] text-muted">
+        <div className="font-[family-name:var(--font-outfit)] text-sm text-white/50">
           {isRecording
             ? "Listening… transcript updates every 30s."
             : "Click mic to start. Transcript appends every ~30s."}
         </div>
       </div>
       <div
-        ref={bodyRef}
-        className="flex-1 overflow-y-auto p-3.5"
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-3.5 carrier-scroll"
       >
         {transcript.length === 0 ? (
-          <div className="text-muted text-[13px] text-center py-8 leading-relaxed">
+          <div className="font-[family-name:var(--font-outfit)] text-sm text-white/30 text-center py-8 leading-relaxed">
             No transcript yet — start the mic.
           </div>
         ) : (
-          transcript.map((line) => (
-            <TranscriptLine key={line.id} text={line.text} timestamp={line.timestamp} />
+          transcript.map((line, idx) => (
+            <div key={line.id} className={`stagger-${Math.min(idx + 1, 5)}`}>
+              <TranscriptLine text={line.text} timestamp={line.timestamp} />
+            </div>
           ))
         )}
       </div>
+      {showScrollButton && (
+        <button
+          onClick={scrollToBottom}
+          className="absolute bottom-4 right-4 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/70 hover:bg-white/20 hover:text-white transition-all duration-150 flex items-center justify-center shadow-lg"
+          aria-label="Scroll to bottom"
+          title="Scroll to bottom"
+        >
+          <ChevronDown size={16} />
+        </button>
+      )}
     </div>
   )
 }

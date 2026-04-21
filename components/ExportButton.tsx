@@ -37,10 +37,10 @@ export function ExportButton() {
   return (
     <button
       onClick={handleExport}
-      className="p-2 rounded-md hover:bg-panel-2 transition-colors"
+      className="p-2 rounded-lg hover:bg-white/5 transition-all duration-150"
       title="Export session"
     >
-      <Download size={16} className="text-muted" />
+      <Download size={16} className="text-white/40 hover:text-white transition-colors duration-150" />
     </button>
   )
 }
