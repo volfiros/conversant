@@ -90,6 +90,7 @@ export function LiveSuggestions() {
         }
         addSuggestionBatch(batch)
         setShowBanner(false)
+        setCountdown(30)
       }
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return
@@ -97,7 +98,7 @@ export function LiveSuggestions() {
     } finally {
       setSuggestionLoading(false)
     }
-  }, [transcript, settings, suggestionAbortController, addSuggestionBatch, setSuggestionLoading, setSuggestionAbortController, setShowBanner])
+  }, [transcript, settings, suggestionAbortController, addSuggestionBatch, setSuggestionLoading, setSuggestionAbortController, setShowBanner, setCountdown])
 
   useEffect(() => {
     if (transcript.length > prevTranscriptLen.current && prevTranscriptLen.current !== -1) {
@@ -119,7 +120,8 @@ export function LiveSuggestions() {
   }, [isRecording, transcript.length])
 
   const handleRefresh = () => {
-    useAppStore.getState().flushRecording()
+    setCountdown(30)
+    doFetch()
   }
 
   const setSendToChat = useCallback((fn: (text: string, type: string) => void) => {
