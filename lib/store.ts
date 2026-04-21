@@ -68,6 +68,9 @@ interface AppState {
   updateChatMessage: (id: string, content: string, isStreaming?: boolean) => void
   setChatStreaming: (v: boolean) => void
   setChatAbortController: (c: AbortController | null) => void
+
+  transcriptSummary: string
+  setTranscriptSummary: (s: string) => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -141,4 +144,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setChatStreaming: (v) => set({ isChatStreaming: v }),
   setChatAbortController: (c) => set({ chatAbortController: c }),
+
+  transcriptSummary: "",
+  setTranscriptSummary: (s) => set({ transcriptSummary: s }),
 }))

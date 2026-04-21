@@ -9,11 +9,35 @@ import { DEFAULT_SUGGESTION_PROMPT } from "@/lib/prompts"
 import { toast } from "sonner"
 import { RefreshCw, ChevronDown } from "lucide-react"
 
+async function fetchSummary(
+  apiKey: string,
+  transcript: { text: string; timestamp: number }[],
+  signal?: AbortSignal
+): Promise<string> {
+  try {
+    const res = await fetch("/api/summarize", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-groq-api-key": apiKey,
+      },
+      body: JSON.stringify({ transcript }),
+      signal,
+    })
+    if (!res.ok) return ""
+    const data = await res.json()
+    return data.summary || ""
+  } catch {
+    return ""
+  }
+}
+
 async function fetchSuggestions(
   apiKey: string,
   transcript: { text: string; timestamp: number }[],
   customPrompt: string | undefined,
   contextWindow: number,
+  summary: string,
   signal?: AbortSignal
 ): Promise<Suggestion[]> {
   const res = await fetch("/api/suggestions", {
@@ -22,7 +46,7 @@ async function fetchSuggestions(
       "Content-Type": "application/json",
       "x-groq-api-key": apiKey,
     },
-    body: JSON.stringify({ transcript, customPrompt, contextWindow }),
+    body: JSON.stringify({ transcript, customPrompt, contextWindow, summary }),
     signal,
   })
   if (!res.ok) {
@@ -48,6 +72,8 @@ export function LiveSuggestions() {
     decrementCountdown,
     suggestionAbortController,
     setSuggestionAbortController,
+    transcriptSummary,
+    setTranscriptSummary,
   } = useAppStore()
 
   const { scrollRef, showScrollButton, handleScroll, scrollToBottom } =
@@ -69,13 +95,27 @@ export function LiveSuggestions() {
     setSuggestionLoading(true)
 
     try {
+      const contextWindow = settings.suggestionContextWindow
+      const older = transcript.length > contextWindow ? transcript.slice(0, -contextWindow) : []
+      const recent = transcript.length > contextWindow ? transcript.slice(-contextWindow) : transcript
+
+      let summary = transcriptSummary
+      if (older.length > 0) {
+        const fetchedSummary = await fetchSummary(settings.apiKey, older, controller.signal)
+        if (fetchedSummary) {
+          summary = fetchedSummary
+          setTranscriptSummary(fetchedSummary)
+        }
+      }
+
       const suggestions = await fetchSuggestions(
         settings.apiKey,
-        transcript,
+        recent,
         settings.suggestionPrompt !== DEFAULT_SUGGESTION_PROMPT
           ? settings.suggestionPrompt
           : undefined,
-        settings.suggestionContextWindow,
+        contextWindow,
+        summary,
         controller.signal
       )
       if (suggestions.length > 0) {
@@ -98,7 +138,7 @@ export function LiveSuggestions() {
     } finally {
       setSuggestionLoading(false)
     }
-  }, [transcript, settings, suggestionAbortController, addSuggestionBatch, setSuggestionLoading, setSuggestionAbortController, setShowBanner, setCountdown])
+  }, [transcript, settings, suggestionAbortController, transcriptSummary, addSuggestionBatch, setSuggestionLoading, setSuggestionAbortController, setTranscriptSummary, setShowBanner, setCountdown])
 
   useEffect(() => {
     if (transcript.length > prevTranscriptLen.current && prevTranscriptLen.current !== -1) {

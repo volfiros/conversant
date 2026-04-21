@@ -9,12 +9,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { question, transcript, chatHistory, customPrompt, contextWindow } = body as {
+    const { question, transcript, chatHistory, customPrompt, contextWindow, summary } = body as {
       question: string
       transcript: { text: string; timestamp: number }[]
       chatHistory?: { role: string; content: string }[]
       customPrompt?: string
       contextWindow?: number
+      summary?: string
     }
 
     if (!question) {
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
       .join("\n")
 
     const defaultPrompt = `You are an AI meeting assistant providing detailed, helpful answers during a live conversation.
-
+${summary ? `\nPrevious conversation context:\n${summary}\n` : ""}
 Meeting transcript so far:
 ${transcriptText}
 
@@ -45,6 +46,7 @@ Provide a thorough, well-structured answer. Include specific facts, data, or exa
 
     const systemPrompt = customPrompt
       ? customPrompt
+          .replace("{summary}", summary ? `Previous conversation context:\n${summary}` : "")
           .replace("{transcript}", transcriptText)
           .replace("{chatHistory}", historyText)
           .replace("{question}", question)

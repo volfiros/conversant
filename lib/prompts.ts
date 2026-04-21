@@ -12,6 +12,7 @@ Guidelines:
 - Keep each suggestion concise (1-2 sentences) but immediately useful
 - The preview text alone should deliver value
 
+{summary}
 Transcript:
 {transcript}
 
@@ -19,6 +20,7 @@ Respond with JSON: { "suggestions": [{ "type": "question|talking|answer|fact", "
 
 export const DEFAULT_CHAT_PROMPT = `You are an AI meeting assistant providing detailed, helpful answers during a live conversation.
 
+{summary}
 Meeting transcript so far:
 {transcript}
 

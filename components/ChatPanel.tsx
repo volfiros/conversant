@@ -16,6 +16,7 @@ async function streamChat(
   chatHistory: { role: string; content: string }[],
   customPrompt: string | undefined,
   contextWindow: number,
+  summary: string,
   onChunk: (text: string) => void,
   signal?: AbortSignal
 ): Promise<void> {
@@ -25,7 +26,7 @@ async function streamChat(
       "Content-Type": "application/json",
       "x-groq-api-key": apiKey,
     },
-    body: JSON.stringify({ question, transcript, chatHistory, customPrompt, contextWindow }),
+    body: JSON.stringify({ question, transcript, chatHistory, customPrompt, contextWindow, summary }),
     signal,
   })
 
@@ -74,6 +75,7 @@ export function ChatPanel() {
     updateChatMessage,
     setChatStreaming,
     setChatAbortController,
+    transcriptSummary,
   } = useAppStore()
 
   const [input, setInput] = useState("")
@@ -145,6 +147,7 @@ export function ChatPanel() {
         history,
         undefined,
         settings.chatContextWindow,
+        transcriptSummary,
         (chunk) => {
           accumulated += chunk
           updateChatMessage(assistantId, accumulated, true)
@@ -163,7 +166,7 @@ export function ChatPanel() {
       setChatStreaming(false)
       streamingIdRef.current = null
     }
-  }, [settings, transcript, chatMessages, chatAbortController])
+  }, [settings, transcript, chatMessages, chatAbortController, transcriptSummary])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
