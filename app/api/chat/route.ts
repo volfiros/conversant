@@ -1,10 +1,12 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import Groq from "groq-sdk"
+import { MODEL_LLM } from "@/lib/constants"
+import { DEFAULT_CHAT_PROMPT } from "@/lib/prompts"
 
 export async function POST(req: NextRequest) {
   const apiKey = req.headers.get("x-groq-api-key")
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: "Missing API key" }), { status: 401 })
+    return NextResponse.json({ error: "Missing API key" }, { status: 401 })
   }
 
   try {
@@ -19,7 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!question) {
-      return new Response(JSON.stringify({ error: "No question provided" }), { status: 400 })
+      return NextResponse.json({ error: "No question provided" }, { status: 400 })
     }
 
     const window = contextWindow || 20
@@ -32,29 +34,23 @@ export async function POST(req: NextRequest) {
       .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
       .join("\n")
 
-    const defaultPrompt = `You are an AI meeting assistant providing detailed, helpful answers during a live conversation.
-${summary ? `\nPrevious conversation context:\n${summary}\n` : ""}
-Meeting transcript so far:
-${transcriptText}
-
-Previous conversation:
-${historyText}
-
-The user asks: ${question}
-
-Provide a thorough, well-structured answer. Include specific facts, data, or examples when relevant.`
+    const defaultPrompt = DEFAULT_CHAT_PROMPT
+      .replace("{summary}", summary ? `Previous conversation context:\n${summary}` : "")
+      .replace("{transcript}", transcriptText)
+      .replace("{chatHistory}", historyText)
+      .replace("{question}", question)
 
     const systemPrompt = customPrompt
       ? customPrompt
-          .replace("{summary}", summary ? `Previous conversation context:\n${summary}` : "")
-          .replace("{transcript}", transcriptText)
-          .replace("{chatHistory}", historyText)
-          .replace("{question}", question)
+          .replaceAll("{summary}", summary ? `Previous conversation context:\n${summary}` : "")
+          .replaceAll("{transcript}", transcriptText)
+          .replaceAll("{chatHistory}", historyText)
+          .replaceAll("{question}", question)
       : defaultPrompt
 
     const groq = new Groq({ apiKey })
     const stream = await groq.chat.completions.create({
-      model: "openai/gpt-oss-120b",
+      model: MODEL_LLM,
       messages: [{ role: "user", content: systemPrompt }],
       stream: true,
       temperature: 0.7,
@@ -89,6 +85,6 @@ Provide a thorough, well-structured answer. Include specific facts, data, or exa
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Chat failed"
     const status = (error as { status?: number })?.status || 500
-    return new Response(JSON.stringify({ error: message }), { status })
+    return NextResponse.json({ error: message }, { status })
   }
 }

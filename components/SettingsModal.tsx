@@ -35,7 +35,7 @@ export function SettingsModal() {
 
   const handleReset = () => {
     const defaults = {
-      ...settings,
+      apiKey: "",
       suggestionPrompt: DEFAULT_SUGGESTION_PROMPT,
       chatPrompt: DEFAULT_CHAT_PROMPT,
       suggestionContextWindow: 10,

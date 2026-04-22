@@ -1,6 +1,5 @@
 "use client"
 
-import { useAppStore } from "@/lib/store"
 import type { SuggestionType } from "@/lib/types"
 import { SUGGESTION_TYPE_LABELS } from "@/lib/types"
 
@@ -12,7 +11,6 @@ const TYPE_COLORS: Record<SuggestionType, { bg: string; text: string }> = {
 }
 
 interface SuggestionCardProps {
-  id: string
   type: SuggestionType
   text: string
   isFresh: boolean

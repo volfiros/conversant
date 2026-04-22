@@ -1,19 +1,7 @@
 import { create } from "zustand"
 import type { TranscriptLine, SuggestionBatch, ChatMessage, Settings } from "./types"
 import { DEFAULT_SUGGESTION_PROMPT, DEFAULT_CHAT_PROMPT } from "./prompts"
-
-const STORAGE_KEY = "conversant-settings"
-
-function loadSettings(): Settings {
-  if (typeof window === "undefined") {
-    return getDefaultSettings()
-  }
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return getDefaultSettings()
-}
+import { STORAGE_KEY } from "./constants"
 
 function getDefaultSettings(): Settings {
   return {
@@ -25,7 +13,7 @@ function getDefaultSettings(): Settings {
   }
 }
 
-function uid(): string {
+export function uid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
@@ -36,21 +24,20 @@ interface AppState {
 
   isRecording: boolean
   mediaRecorder: MediaRecorder | null
-  transcriptionQueue: Blob[]
-  isTranscribing: boolean
   abortController: AbortController | null
 
   startRecording: () => Promise<void>
   stopRecording: () => void
   setMediaRecorder: (r: MediaRecorder | null) => void
-  enqueueBlob: (blob: Blob) => void
-  setTranscribing: (v: boolean) => void
   setAbortController: (c: AbortController | null) => void
 
   transcript: TranscriptLine[]
   addTranscriptLine: (text: string, isSystem?: boolean) => void
   lastSuggestionTranscriptLength: number
   setLastSuggestionTranscriptLength: (n: number) => void
+
+  pendingSuggestion: { text: string; type: string } | null
+  setPendingSuggestion: (s: { text: string; type: string } | null) => void
 
   suggestionBatches: SuggestionBatch[]
   suggestionLoading: boolean
@@ -90,12 +77,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   isRecording: false,
   mediaRecorder: null,
-  transcriptionQueue: [],
-  isTranscribing: false,
   abortController: null,
 
   startRecording: async () => {
-    set({ isRecording: true })
+    set({ isRecording: true, countdown: 30 })
   },
   stopRecording: () => {
     const { mediaRecorder } = get()
@@ -105,10 +90,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isRecording: false, mediaRecorder: null })
   },
   setMediaRecorder: (r) => set({ mediaRecorder: r }),
-  enqueueBlob: (blob) => {
-    set({ transcriptionQueue: [...get().transcriptionQueue, blob] })
-  },
-  setTranscribing: (v) => set({ isTranscribing: v }),
   setAbortController: (c) => set({ abortController: c }),
 
   transcript: [],
@@ -119,6 +100,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   lastSuggestionTranscriptLength: 0,
   setLastSuggestionTranscriptLength: (n) => set({ lastSuggestionTranscriptLength: n }),
+
+  pendingSuggestion: null,
+  setPendingSuggestion: (s) => set({ pendingSuggestion: s }),
 
   suggestionBatches: [],
   suggestionLoading: false,

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useAppStore } from "@/lib/store"
+import { useAppStore, uid } from "@/lib/store"
 import { useScrollToBottom } from "@/lib/useScrollToBottom"
 import { ChatMessage } from "./ChatMessage"
 import { SUGGESTION_TYPE_LABELS } from "@/lib/types"
@@ -76,6 +76,8 @@ export function ChatPanel() {
     setChatStreaming,
     setChatAbortController,
     transcriptSummary,
+    pendingSuggestion,
+    setPendingSuggestion,
   } = useAppStore()
 
   const [input, setInput] = useState("")
@@ -83,15 +85,6 @@ export function ChatPanel() {
 
   const { scrollRef, showScrollButton, handleScroll, scrollToBottom } =
     useScrollToBottom<HTMLDivElement>([chatMessages])
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const { text, type } = (e as CustomEvent).detail
-      handleSend(text, type)
-    }
-    window.addEventListener("suggestion-click", handler)
-    return () => window.removeEventListener("suggestion-click", handler)
-  })
 
   const handleSend = useCallback(async (text: string, suggestionType?: string) => {
     if (!text.trim()) return
@@ -109,7 +102,7 @@ export function ChatPanel() {
     }
 
     const userMsg = {
-      id: Math.random().toString(36).slice(2) + Date.now().toString(36),
+      id: uid(),
       role: "user" as const,
       content: text,
       label: suggestionType ? SUGGESTION_TYPE_LABELS[suggestionType as SuggestionType] : undefined,
@@ -118,7 +111,7 @@ export function ChatPanel() {
     addChatMessage(userMsg)
     setInput("")
 
-    const assistantId = Math.random().toString(36).slice(2) + Date.now().toString(36)
+    const assistantId = uid()
     const assistantMsg = {
       id: assistantId,
       role: "assistant" as const,
@@ -160,13 +153,21 @@ export function ChatPanel() {
         updateChatMessage(assistantId, accumulated, false)
         return
       }
+      console.error("Chat streaming error:", err)
       toast.error("Chat streaming failed")
       updateChatMessage(assistantId, accumulated || "Failed to get response.", false)
     } finally {
       setChatStreaming(false)
       streamingIdRef.current = null
     }
-  }, [settings, transcript, chatMessages, chatAbortController, transcriptSummary])
+  }, [settings, transcript, chatMessages, chatAbortController, transcriptSummary, addChatMessage, updateChatMessage, setChatStreaming, setChatAbortController])
+
+  useEffect(() => {
+    if (pendingSuggestion) {
+      handleSend(pendingSuggestion.text, pendingSuggestion.type)
+      setPendingSuggestion(null)
+    }
+  }, [pendingSuggestion, handleSend, setPendingSuggestion])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {

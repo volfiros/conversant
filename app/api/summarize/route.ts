@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import Groq from "groq-sdk"
+import { MODEL_LLM } from "@/lib/constants"
 
 export async function POST(req: NextRequest) {
   const apiKey = req.headers.get("x-groq-api-key")
@@ -33,7 +34,7 @@ Respond with JSON: { "summary": "..." }`
 
     const groq = new Groq({ apiKey })
     const response = await groq.chat.completions.create({
-      model: "openai/gpt-oss-120b",
+      model: MODEL_LLM,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
       max_tokens: 256,
@@ -45,7 +46,7 @@ Respond with JSON: { "summary": "..." }`
 
     return NextResponse.json({ summary: parsed.summary || "" })
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Summarization failed"
+    console.error("Summarization error:", error)
     return NextResponse.json({ summary: "" })
   }
 }

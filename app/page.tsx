@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAppStore } from "@/lib/store"
+import { STORAGE_KEY } from "@/lib/constants"
 import { TopBar } from "@/components/TopBar"
 import { MicTranscript } from "@/components/MicTranscript"
 import { LiveSuggestions } from "@/components/LiveSuggestions"
@@ -15,7 +16,7 @@ export default function Home() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("conversant-settings")
+      const raw = localStorage.getItem(STORAGE_KEY)
       if (raw) {
         const saved = JSON.parse(raw)
         updateSettings(saved)

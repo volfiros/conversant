@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useAppStore } from "@/lib/store"
+import { useAppStore, uid } from "@/lib/store"
 import { useScrollToBottom } from "@/lib/useScrollToBottom"
 import { SuggestionCard } from "./SuggestionCard"
 import type { Suggestion, SuggestionBatch } from "@/lib/types"
@@ -69,79 +69,78 @@ export function LiveSuggestions() {
     addSuggestionBatch,
     setSuggestionLoading,
     setCountdown,
-    decrementCountdown,
-    suggestionAbortController,
     setSuggestionAbortController,
     transcriptSummary,
     setTranscriptSummary,
     setLastSuggestionTranscriptLength,
+    setPendingSuggestion,
   } = useAppStore()
 
   const { scrollRef, showScrollButton, handleScroll, scrollToBottom } =
     useScrollToBottom<HTMLDivElement>([suggestionBatches])
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const sendToChatRef = useRef<((text: string, type: string) => void) | null>(null)
   const [showBanner, setShowBanner] = useState(true)
   const prevTranscriptLen = useRef(0)
 
   const doFetch = useCallback(async () => {
-    const realTranscript = transcript.filter(l => !l.isSystem)
-    if (realTranscript.length === 0 || !settings.apiKey) return
+    const state = useAppStore.getState()
+    const currentTranscript = state.transcript
+    const realTranscript = currentTranscript.filter(l => !l.isSystem)
+    if (realTranscript.length === 0 || !state.settings.apiKey) return
 
-    if (suggestionAbortController) {
-      suggestionAbortController.abort()
-    }
+    const prev = state.suggestionAbortController
+    if (prev) prev.abort()
     const controller = new AbortController()
     setSuggestionAbortController(controller)
     setSuggestionLoading(true)
 
     try {
-      const contextWindow = settings.suggestionContextWindow
+      const contextWindow = state.settings.suggestionContextWindow
       const older = realTranscript.length > contextWindow ? realTranscript.slice(0, -contextWindow) : []
       const recent = realTranscript.length > contextWindow ? realTranscript.slice(-contextWindow) : realTranscript
 
-      let summary = transcriptSummary
+      let summary = state.transcriptSummary
       if (older.length > 0) {
-        const fetchedSummary = await fetchSummary(settings.apiKey, older, controller.signal)
+        const fetchedSummary = await fetchSummary(state.settings.apiKey, older, controller.signal)
         if (fetchedSummary) {
           summary = fetchedSummary
           setTranscriptSummary(fetchedSummary)
         }
       }
 
+      const customPrompt = state.settings.suggestionPrompt !== DEFAULT_SUGGESTION_PROMPT
+        ? state.settings.suggestionPrompt
+        : undefined
+
       const suggestions = await fetchSuggestions(
-        settings.apiKey,
+        state.settings.apiKey,
         recent,
-        settings.suggestionPrompt !== DEFAULT_SUGGESTION_PROMPT
-          ? settings.suggestionPrompt
-          : undefined,
+        customPrompt,
         contextWindow,
         summary,
         controller.signal
       )
       if (suggestions.length > 0) {
         const batch: SuggestionBatch = {
-          id: Math.random().toString(36).slice(2) + Date.now().toString(36),
-          suggestions: suggestions.map((s) => ({
-            ...s,
-            id: Math.random().toString(36).slice(2) + Date.now().toString(36),
-          })),
+          id: uid(),
+          suggestions: suggestions.map((s) => ({ ...s, id: uid() })),
           timestamp: Date.now(),
-          batchNumber: useAppStore.getState().batchCounter + 1,
+          batchNumber: state.batchCounter + 1,
         }
         addSuggestionBatch(batch)
         setShowBanner(false)
         setCountdown(30)
       }
-      setLastSuggestionTranscriptLength(transcript.length)
+      setLastSuggestionTranscriptLength(useAppStore.getState().transcript.length)
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return
+      console.error("Suggestion fetch error:", err)
       toast.error("Failed to fetch suggestions")
     } finally {
       setSuggestionLoading(false)
     }
-  }, [transcript, settings, suggestionAbortController, transcriptSummary, addSuggestionBatch, setSuggestionLoading, setSuggestionAbortController, setTranscriptSummary, setShowBanner, setCountdown, setLastSuggestionTranscriptLength])
+  }, [addSuggestionBatch, setSuggestionLoading, setSuggestionAbortController, setTranscriptSummary, setShowBanner, setCountdown, setLastSuggestionTranscriptLength])
 
   useEffect(() => {
     if (transcript.length > prevTranscriptLen.current) {
@@ -171,10 +170,6 @@ export function LiveSuggestions() {
     setCountdown(30)
     doFetch()
   }
-
-  const setSendToChat = useCallback((fn: (text: string, type: string) => void) => {
-    sendToChatRef.current = fn
-  }, [])
 
   return (
     <div className="glass-panel h-full flex flex-col overflow-hidden min-h-0 relative animate-fade-in-up stagger-2">
@@ -223,19 +218,12 @@ export function LiveSuggestions() {
               {batch.suggestions.map((s, sIdx) => (
                 <div key={s.id} className={`mb-2 stagger-${Math.min(sIdx + 1, 3)}`}>
                   <SuggestionCard
-                    id={s.id}
                     type={s.type}
                     text={s.text}
                     isFresh={batchIdx === 0}
                     isStale={batchIdx > 0}
                     onClick={() => {
-                      if (sendToChatRef.current) {
-                        sendToChatRef.current(s.text, s.type)
-                      }
-                      const event = new CustomEvent("suggestion-click", {
-                        detail: { text: s.text, type: s.type },
-                      })
-                      window.dispatchEvent(event)
+                      setPendingSuggestion({ text: s.text, type: s.type })
                     }}
                   />
                 </div>

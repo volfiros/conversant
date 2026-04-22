@@ -83,15 +83,6 @@ html, body {
   transform: scale(0.98);
 }
 
-.glow-accent {
-  box-shadow: 0 0 12px rgba(34, 211, 238, 0.3);
-}
-
-.transition-theme {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
-}
-
-/* Keyframe animations */
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -117,11 +108,6 @@ html, body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.4); }
-  50% { box-shadow: 0 0 20px 4px rgba(34, 211, 238, 0.1); }
-}
-
 @keyframes breathing {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(1.1); }
@@ -131,11 +117,6 @@ html, body {
   0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
   70% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
   100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-}
-
-@keyframes gentle-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
 }
 
 @keyframes blink {
@@ -169,20 +150,12 @@ html, body {
   animation: slide-down 0.3s ease-out both;
 }
 
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
 .animate-breathing {
   animation: breathing 2s ease-in-out infinite;
 }
 
 .animate-ripple {
   animation: ripple 1.4s ease-out infinite;
-}
-
-.animate-gentle-float {
-  animation: gentle-float 3s ease-in-out infinite;
 }
 
 .animate-blink {

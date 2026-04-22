@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAppStore } from "@/lib/store"
+import { STORAGE_KEY } from "@/lib/constants"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
@@ -18,7 +19,7 @@ export default function SetupPage() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("conversant-settings")
+      const raw = localStorage.getItem(STORAGE_KEY)
       if (raw) {
         const saved = JSON.parse(raw)
         if (saved.apiKey) {

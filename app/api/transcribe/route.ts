@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import Groq from "groq-sdk"
+import { MODEL_WHISPER } from "@/lib/constants"
 
 export async function POST(req: NextRequest) {
   const apiKey = req.headers.get("x-groq-api-key")
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     const groq = new Groq({ apiKey })
     const result = await groq.audio.transcriptions.create({
-      model: "whisper-large-v3",
+      model: MODEL_WHISPER,
       file: audioFile,
     })
 

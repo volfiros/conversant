@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 import { Outfit, JetBrains_Mono } from "next/font/google"
 import { Toaster } from "sonner"
-import { TooltipProvider } from "@/components/ui/tooltip"
 import "./globals.css"
 
 const outfit = Outfit({
@@ -35,9 +34,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="antialiased">
-        <TooltipProvider>
-          {children}
-        </TooltipProvider>
+        {children}
         <Toaster
           theme="dark"
           position="bottom-right"

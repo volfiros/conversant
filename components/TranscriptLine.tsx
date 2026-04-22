@@ -8,7 +8,7 @@ interface TranscriptLineProps {
   isSystem?: boolean
 }
 
-export function TranscriptLine({ text, timestamp, isSystem }: TranscriptLineProps) {
+export function TranscriptLineItem({ text, timestamp, isSystem }: TranscriptLineProps) {
   const time = new Date(timestamp).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",

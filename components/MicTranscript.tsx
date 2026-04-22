@@ -1,10 +1,10 @@
 "use client"
 
-import { useCallback, useRef } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import { useAppStore } from "@/lib/store"
 import { useScrollToBottom } from "@/lib/useScrollToBottom"
 import { getSupportedMimeType, createMediaRecorder } from "@/lib/audio"
-import { TranscriptLine } from "./TranscriptLine"
+import { TranscriptLineItem } from "./TranscriptLine"
 import { isHallucination } from "@/lib/transcribe-filter"
 import { toast } from "sonner"
 import { Mic, MicOff, ChevronDown } from "lucide-react"
@@ -61,6 +61,23 @@ export function MicTranscript() {
   const streamRef = useRef<MediaStream | null>(null)
   const segmentTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (segmentTimerRef.current) {
+        clearInterval(segmentTimerRef.current)
+        segmentTimerRef.current = null
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop())
+        streamRef.current = null
+      }
+      if (abortRef.current) {
+        abortRef.current.abort()
+        abortRef.current = null
+      }
+    }
+  }, [])
 
   const processQueue = useCallback(async () => {
     if (processingRef.current || queueRef.current.length === 0) return
@@ -192,7 +209,7 @@ export function MicTranscript() {
         ) : (
           transcript.map((line, idx) => (
             <div key={line.id} className={`stagger-${Math.min(idx + 1, 5)}`}>
-              <TranscriptLine text={line.text} timestamp={line.timestamp} isSystem={line.isSystem} />
+              <TranscriptLineItem text={line.text} timestamp={line.timestamp} isSystem={line.isSystem} />
             </div>
           ))
         )}
