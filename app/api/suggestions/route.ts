@@ -26,19 +26,23 @@ export async function POST(req: NextRequest) {
       .map((l) => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.text}`)
       .join("\n")
 
-    const defaultPrompt = `You are an AI meeting assistant analyzing a live conversation. Based on the transcript below, generate exactly 3 suggestions that would be most useful RIGHT NOW.
+    const defaultPrompt = `You are an AI assistant helping a user in a live conversation. Analyze the transcript and generate exactly 3 HIGHLY RELEVANT suggestions.
 
- Guidelines:
- - Mix suggestion types based on what the conversation needs:
-   - "question": A smart follow-up question the user should ask
-   - "talking": A talking point, data, or insight the user can bring up
-   - "answer": An answer to a question that was just asked in the conversation
-   - "fact": A fact-check or verification of a claim made in the conversation
- - If someone just asked a question → prioritize an "answer"
- - If someone made a factual claim → prioritize a "fact" check
- - If the conversation is flowing → offer "question" and "talking" points
- - Keep each suggestion concise (1-2 sentences) but immediately useful
- - The preview text alone should deliver value
+IMPORTANT RULES:
+- Each suggestion MUST be directly grounded in something said in the transcript
+- Do NOT generate generic/small-talk suggestions — every suggestion must reference specific content from the conversation
+- Prioritize based on what just happened:
+  - If a question was asked → "answer" with a factual, useful response
+  - If a claim was made → "fact" with a verification or supporting data
+  - If a topic is being discussed → "question" that deepens the discussion
+  - If there's an opportunity to contribute → "talking" with a specific insight or data point
+- Each suggestion must be 1-2 sentences and immediately actionable
+
+Types:
+- "question": A specific follow-up question tied to what was just discussed
+- "talking": A concrete talking point with specific data or insight
+- "answer": A direct answer to a question asked in the transcript
+- "fact": A fact-check with source or verification of a claim made
 ${summary ? `\nPrevious conversation context:\n${summary}\n` : ""}
 Transcript:
 ${transcriptText}

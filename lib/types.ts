@@ -4,6 +4,7 @@ export interface TranscriptLine {
   id: string
   text: string
   timestamp: number
+  isSystem?: boolean
 }
 
 export interface Suggestion {

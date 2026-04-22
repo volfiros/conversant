@@ -48,7 +48,9 @@ interface AppState {
   setAbortController: (c: AbortController | null) => void
 
   transcript: TranscriptLine[]
-  addTranscriptLine: (text: string) => void
+  addTranscriptLine: (text: string, isSystem?: boolean) => void
+  lastSuggestionTranscriptLength: number
+  setLastSuggestionTranscriptLength: (n: number) => void
 
   suggestionBatches: SuggestionBatch[]
   suggestionLoading: boolean
@@ -110,10 +112,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAbortController: (c) => set({ abortController: c }),
 
   transcript: [],
-  addTranscriptLine: (text) => {
-    const line: TranscriptLine = { id: uid(), text, timestamp: Date.now() }
+  addTranscriptLine: (text, isSystem) => {
+    const line: TranscriptLine = { id: uid(), text, timestamp: Date.now(), isSystem }
     set({ transcript: [...get().transcript, line] })
   },
+
+  lastSuggestionTranscriptLength: 0,
+  setLastSuggestionTranscriptLength: (n) => set({ lastSuggestionTranscriptLength: n }),
 
   suggestionBatches: [],
   suggestionLoading: false,

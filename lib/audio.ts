@@ -11,7 +11,7 @@ export function getSupportedMimeType(): string {
   return ""
 }
 
-const MIN_BLOB_SIZE = 256
+const MIN_BLOB_SIZE = 1024
 
 export function createMediaRecorder(
   stream: MediaStream,

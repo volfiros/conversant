@@ -5,6 +5,7 @@ import { useAppStore } from "@/lib/store"
 import { useScrollToBottom } from "@/lib/useScrollToBottom"
 import { getSupportedMimeType, createMediaRecorder } from "@/lib/audio"
 import { TranscriptLine } from "./TranscriptLine"
+import { isHallucination } from "@/lib/transcribe-filter"
 import { toast } from "sonner"
 import { Mic, MicOff, ChevronDown } from "lucide-react"
 
@@ -58,6 +59,8 @@ export function MicTranscript() {
   const processingRef = useRef(false)
   const abortRef = useRef<AbortController | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const segmentTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const recorderRef = useRef<MediaRecorder | null>(null)
 
   const processQueue = useCallback(async () => {
     if (processingRef.current || queueRef.current.length === 0) return
@@ -67,7 +70,9 @@ export function MicTranscript() {
       const blob = queueRef.current.shift()!
       try {
         const text = await transcribeBlob(blob, settings.apiKey, abortRef.current?.signal)
-        if (text.trim()) {
+        if (!text.trim() || isHallucination(text.trim())) {
+          addTranscriptLine("No speech detected in this segment", true)
+        } else {
           addTranscriptLine(text.trim())
         }
       } catch (err: unknown) {
@@ -82,6 +87,10 @@ export function MicTranscript() {
   const handleToggle = useCallback(async () => {
     if (isRecording) {
       stopRecording()
+      if (segmentTimerRef.current) {
+        clearInterval(segmentTimerRef.current)
+        segmentTimerRef.current = null
+      }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop())
         streamRef.current = null
@@ -112,14 +121,28 @@ export function MicTranscript() {
       abortRef.current = abortController
       setAbortController(abortController)
 
-      const recorder = createMediaRecorder(stream, (blob) => {
-        queueRef.current.push(blob)
-        processQueue()
-      })
+      const makeRecorder = (): MediaRecorder => {
+        const r = createMediaRecorder(stream, (blob) => {
+          queueRef.current.push(blob)
+          processQueue()
+        })
+        r.start()
+        return r
+      }
 
-      recorder.start(30000)
+      const recorder = makeRecorder()
+      recorderRef.current = recorder
       setMediaRecorder(recorder)
       startRecording()
+
+      segmentTimerRef.current = setInterval(() => {
+        if (recorderRef.current && recorderRef.current.state === "recording") {
+          recorderRef.current.stop()
+          const next = makeRecorder()
+          recorderRef.current = next
+          setMediaRecorder(next)
+        }
+      }, 30000)
     } catch (err) {
       if (err instanceof DOMException && err.name === "NotAllowedError") {
         toast.error("Microphone permission denied. Please allow access.")
@@ -169,7 +192,7 @@ export function MicTranscript() {
         ) : (
           transcript.map((line, idx) => (
             <div key={line.id} className={`stagger-${Math.min(idx + 1, 5)}`}>
-              <TranscriptLine text={line.text} timestamp={line.timestamp} />
+              <TranscriptLine text={line.text} timestamp={line.timestamp} isSystem={line.isSystem} />
             </div>
           ))
         )}

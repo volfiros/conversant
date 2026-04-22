@@ -74,6 +74,7 @@ export function LiveSuggestions() {
     setSuggestionAbortController,
     transcriptSummary,
     setTranscriptSummary,
+    setLastSuggestionTranscriptLength,
   } = useAppStore()
 
   const { scrollRef, showScrollButton, handleScroll, scrollToBottom } =
@@ -82,10 +83,11 @@ export function LiveSuggestions() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const sendToChatRef = useRef<((text: string, type: string) => void) | null>(null)
   const [showBanner, setShowBanner] = useState(true)
-  const prevTranscriptLen = useRef(-1)
+  const prevTranscriptLen = useRef(0)
 
   const doFetch = useCallback(async () => {
-    if (transcript.length === 0 || !settings.apiKey) return
+    const realTranscript = transcript.filter(l => !l.isSystem)
+    if (realTranscript.length === 0 || !settings.apiKey) return
 
     if (suggestionAbortController) {
       suggestionAbortController.abort()
@@ -96,8 +98,8 @@ export function LiveSuggestions() {
 
     try {
       const contextWindow = settings.suggestionContextWindow
-      const older = transcript.length > contextWindow ? transcript.slice(0, -contextWindow) : []
-      const recent = transcript.length > contextWindow ? transcript.slice(-contextWindow) : transcript
+      const older = realTranscript.length > contextWindow ? realTranscript.slice(0, -contextWindow) : []
+      const recent = realTranscript.length > contextWindow ? realTranscript.slice(-contextWindow) : realTranscript
 
       let summary = transcriptSummary
       if (older.length > 0) {
@@ -132,17 +134,23 @@ export function LiveSuggestions() {
         setShowBanner(false)
         setCountdown(30)
       }
+      setLastSuggestionTranscriptLength(transcript.length)
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return
       toast.error("Failed to fetch suggestions")
     } finally {
       setSuggestionLoading(false)
     }
-  }, [transcript, settings, suggestionAbortController, transcriptSummary, addSuggestionBatch, setSuggestionLoading, setSuggestionAbortController, setTranscriptSummary, setShowBanner, setCountdown])
+  }, [transcript, settings, suggestionAbortController, transcriptSummary, addSuggestionBatch, setSuggestionLoading, setSuggestionAbortController, setTranscriptSummary, setShowBanner, setCountdown, setLastSuggestionTranscriptLength])
 
   useEffect(() => {
-    if (transcript.length > prevTranscriptLen.current && prevTranscriptLen.current !== -1) {
-      doFetch()
+    if (transcript.length > prevTranscriptLen.current) {
+      const hasNewRealTranscript = transcript
+        .slice(prevTranscriptLen.current)
+        .some(line => !line.isSystem)
+      if (hasNewRealTranscript) {
+        doFetch()
+      }
     }
     prevTranscriptLen.current = transcript.length
   }, [transcript, doFetch])
@@ -205,7 +213,9 @@ export function LiveSuggestions() {
         )}
         {suggestionBatches.length === 0 ? (
           <div className="font-[family-name:var(--font-outfit)] text-sm text-white/30 text-center py-8 leading-relaxed">
-            Suggestions appear here once recording starts.
+            {isRecording && transcript.length > 0 && transcript.every(l => l.isSystem)
+              ? "No new speech detected — suggestions will appear when speech is recognized."
+              : "Suggestions appear here once recording starts."}
           </div>
         ) : (
           suggestionBatches.map((batch, batchIdx) => (

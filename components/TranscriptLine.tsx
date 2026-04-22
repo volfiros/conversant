@@ -1,16 +1,30 @@
 "use client"
 
+import { Info } from "lucide-react"
+
 interface TranscriptLineProps {
   text: string
   timestamp: number
+  isSystem?: boolean
 }
 
-export function TranscriptLine({ text, timestamp }: TranscriptLineProps) {
+export function TranscriptLine({ text, timestamp, isSystem }: TranscriptLineProps) {
   const time = new Date(timestamp).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
   })
+
+  if (isSystem) {
+    return (
+      <div className="animate-fade-in-up mb-2.5 leading-relaxed">
+        <span className="font-[family-name:var(--font-outfit)] text-xs italic text-white/25 flex items-center gap-1.5">
+          <Info size={10} className="text-white/20" />
+          {text}
+        </span>
+      </div>
+    )
+  }
 
   return (
     <div className="animate-fade-in-up mb-2.5 leading-relaxed">

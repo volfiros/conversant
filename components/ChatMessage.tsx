@@ -28,6 +28,21 @@ const markdownComponents: Components = {
   ol: ({ children }) => <ol className="list-decimal pl-4 space-y-1">{children}</ol>,
   h3: ({ children }) => <h3 className="font-semibold text-white mt-3 mb-1">{children}</h3>,
   h4: ({ children }) => <h4 className="font-semibold text-white mt-3 mb-1">{children}</h4>,
+  table: ({ children }) => (
+    <div className="overflow-x-auto my-2 -mx-1 max-w-full">
+      <table className="min-w-full text-xs border-collapse">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => <thead className="bg-white/5">{children}</thead>,
+  th: ({ children }) => (
+    <th className="border border-white/10 px-2 py-1 text-left text-white/70 whitespace-nowrap">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="border border-white/10 px-2 py-1 whitespace-nowrap">{children}</td>
+  ),
+  tr: ({ children }) => <tr className="even:bg-white/[0.02]">{children}</tr>,
 }
 
 export function ChatMessage({ role, content, label, isStreaming }: ChatMessageProps) {
