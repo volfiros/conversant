@@ -1,6 +1,6 @@
 # Conversant
 
-A web app that listens to your microphone during a conversation and continuously surfaces 3 useful suggestions based on what is being said. Clicking a suggestion opens a detailed answer in a chat panel on the right.
+A real-time AI meeting copilot that listens to your microphone and surfaces live suggestions — questions to ask, talking points, answers, and fact-checks.
 
 Live at [conversant.vercel.app](https://conversant.vercel.app)
 
