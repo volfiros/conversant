@@ -1,12 +1,13 @@
 import { create } from "zustand"
 import type { TranscriptLine, SuggestionBatch, ChatMessage, Settings } from "./types"
-import { DEFAULT_SUGGESTION_PROMPT, DEFAULT_CHAT_PROMPT, DEFAULT_SUMMARIZE_PROMPT } from "./prompts"
+import { DEFAULT_SUGGESTION_PROMPT, DEFAULT_DETAIL_PROMPT, DEFAULT_CHAT_PROMPT, DEFAULT_SUMMARIZE_PROMPT } from "./prompts"
 import { STORAGE_KEY, DEFAULT_CONTEXT, TIMING, LIMITS } from "./config"
 
 export function getDefaultSettings(): Settings {
   return {
     apiKey: "",
     suggestionPrompt: DEFAULT_SUGGESTION_PROMPT,
+    detailPrompt: DEFAULT_DETAIL_PROMPT,
     chatPrompt: DEFAULT_CHAT_PROMPT,
     summarizePrompt: DEFAULT_SUMMARIZE_PROMPT,
     suggestionContextWindow: DEFAULT_CONTEXT.suggestionWindow,
@@ -34,11 +35,14 @@ interface AppState {
 
   transcript: TranscriptLine[]
   addTranscriptLine: (text: string, isSystem?: boolean) => void
-  lastSuggestionTranscriptLength: number
-  setLastSuggestionTranscriptLength: (n: number) => void
 
   pendingSuggestion: { text: string; type: string } | null
   setPendingSuggestion: (s: { text: string; type: string } | null) => void
+
+  forceTranscribe: (() => void) | null
+  setForceTranscribe: (fn: (() => void) | null) => void
+  onCountdownZero: (() => void) | null
+  setOnCountdownZero: (fn: (() => void) | null) => void
 
   suggestionBatches: SuggestionBatch[]
   suggestionLoading: boolean
@@ -99,11 +103,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ transcript: [...get().transcript, line] })
   },
 
-  lastSuggestionTranscriptLength: 0,
-  setLastSuggestionTranscriptLength: (n) => set({ lastSuggestionTranscriptLength: n }),
-
   pendingSuggestion: null,
   setPendingSuggestion: (s) => set({ pendingSuggestion: s }),
+
+  forceTranscribe: null,
+  setForceTranscribe: (fn) => set({ forceTranscribe: fn }),
+  onCountdownZero: null,
+  setOnCountdownZero: (fn) => set({ onCountdownZero: fn }),
 
   suggestionBatches: [],
   suggestionLoading: false,
@@ -116,7 +122,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setSuggestionLoading: (v) => set({ suggestionLoading: v }),
   setCountdown: (v) => set({ countdown: v }),
-  decrementCountdown: () => set({ countdown: Math.max(0, get().countdown - 1) }),
+  decrementCountdown: () => {
+    const next = get().countdown - 1
+    if (next <= 0) {
+      set({ countdown: TIMING.suggestionCountdownSec })
+      const cb = get().onCountdownZero
+      if (cb) cb()
+    } else {
+      set({ countdown: next })
+    }
+  },
   setSuggestionAbortController: (c) => set({ suggestionAbortController: c }),
 
   chatMessages: [],

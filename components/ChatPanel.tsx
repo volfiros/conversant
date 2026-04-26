@@ -5,6 +5,7 @@ import { useAppStore, uid } from "@/lib/store"
 import { useScrollToBottom } from "@/lib/useScrollToBottom"
 import { ChatMessage } from "./ChatMessage"
 import { SUGGESTION_TYPE_LABELS } from "@/lib/types"
+import { DEFAULT_CHAT_PROMPT, DEFAULT_DETAIL_PROMPT } from "@/lib/prompts"
 import type { SuggestionType } from "@/lib/types"
 import { toast } from "sonner"
 import { Send } from "lucide-react"
@@ -145,13 +146,17 @@ export function ChatPanel() {
       label: m.label,
     }))
 
+    const customPrompt = suggestionType
+      ? settings.detailPrompt
+      : settings.chatPrompt
+
     try {
       await streamChat(
         settings.apiKey,
         text,
         transcript,
         history,
-        undefined,
+        customPrompt,
         settings.chatContextWindow,
         transcriptSummary,
         (chunk) => {

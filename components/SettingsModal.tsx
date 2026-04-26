@@ -39,10 +39,6 @@ export function SettingsModal({ onRegisterTrigger }: { onRegisterTrigger?: (open
     setOpen(false)
   }
 
-  const handleCancel = () => {
-    setOpen(false)
-  }
-
   const handleReset = () => {
     const defaults = getDefaultSettings()
     setLocalSettings(defaults)
@@ -93,6 +89,20 @@ export function SettingsModal({ onRegisterTrigger }: { onRegisterTrigger?: (open
               value={localSettings.suggestionPrompt}
               onChange={(e) =>
                 setLocalSettings({ ...localSettings, suggestionPrompt: e.target.value })
+              }
+              rows={6}
+              className="bg-white/[0.03] border-white/[0.08] text-white text-xs focus:border-accent/50 transition-all duration-150"
+            />
+          </div>
+
+          <div>
+            <label className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em] text-white/40 mb-1.5 block">
+              Detail Answer Prompt (on suggestion click)
+            </label>
+            <Textarea
+              value={localSettings.detailPrompt}
+              onChange={(e) =>
+                setLocalSettings({ ...localSettings, detailPrompt: e.target.value })
               }
               rows={6}
               className="bg-white/[0.03] border-white/[0.08] text-white text-xs focus:border-accent/50 transition-all duration-150"

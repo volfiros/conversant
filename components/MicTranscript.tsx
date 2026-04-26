@@ -52,6 +52,7 @@ export function MicTranscript() {
     stopRecording,
     setMediaRecorder,
     setAbortController,
+    setForceTranscribe,
   } = useAppStore()
 
   const { scrollRef, showScrollButton, handleScroll, scrollToBottom } =
@@ -105,6 +106,22 @@ export function MicTranscript() {
 
     processingRef.current = false
   }, [settings.apiKey, addTranscriptLine])
+
+  useEffect(() => {
+    setForceTranscribe(() => () => {
+      if (recorderRef.current && recorderRef.current.state === "recording" && streamRef.current) {
+        recorderRef.current.stop()
+        const next = createMediaRecorder(streamRef.current, (blob) => {
+          queueRef.current.push(blob)
+          processQueue()
+        })
+        next.start()
+        recorderRef.current = next
+        setMediaRecorder(next)
+      }
+    })
+    return () => setForceTranscribe(null)
+  }, [setForceTranscribe, processQueue, setMediaRecorder])
 
   const handleToggle = useCallback(async () => {
     if (isRecording) {

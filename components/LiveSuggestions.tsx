@@ -97,8 +97,8 @@ export function LiveSuggestions() {
     setSuggestionAbortController,
     transcriptSummary,
     setTranscriptSummary,
-    setLastSuggestionTranscriptLength,
     setPendingSuggestion,
+    setOnCountdownZero,
   } = useAppStore()
 
   const { scrollRef, showScrollButton, handleScroll, scrollToBottom } =
@@ -172,7 +172,6 @@ export function LiveSuggestions() {
           setCountdown(TIMING.suggestionCountdownSec)
         }
       }
-      setLastSuggestionTranscriptLength(useAppStore.getState().transcript.length)
       trackApiResult(true)
     } catch (err) {
       trackApiResult(false)
@@ -182,7 +181,7 @@ export function LiveSuggestions() {
     } finally {
       setSuggestionLoading(false)
     }
-  }, [addSuggestionBatch, setSuggestionLoading, setSuggestionAbortController, setTranscriptSummary, setShowBanner, setCountdown, setLastSuggestionTranscriptLength])
+  }, [addSuggestionBatch, setSuggestionLoading, setSuggestionAbortController, setTranscriptSummary, setShowBanner, setCountdown])
 
   useEffect(() => {
     if (transcript.length > prevTranscriptLen.current) {
@@ -214,9 +213,28 @@ export function LiveSuggestions() {
     }
   }, [isRecording, transcript.length])
 
+  useEffect(() => {
+    setOnCountdownZero(() => () => {
+      const ft = useAppStore.getState().forceTranscribe
+      if (ft) ft()
+      setTimeout(() => {
+        doFetch()
+      }, 2000)
+    })
+    return () => setOnCountdownZero(null)
+  }, [doFetch, setOnCountdownZero])
+
   const handleRefresh = () => {
     setCountdown(TIMING.suggestionCountdownSec)
-    doFetch()
+    const ft = useAppStore.getState().forceTranscribe
+    if (ft && isRecording) {
+      ft()
+      setTimeout(() => {
+        doFetch()
+      }, 2000)
+    } else {
+      doFetch()
+    }
   }
 
   return (

@@ -29,13 +29,28 @@ EXAMPLE OUTPUT:
   { "type": "talking", "text": "Mention that competitor X recently switched to hybrid pricing and saw 2x revenue growth within 6 months." }
 ] }`
 
-export const DEFAULT_CHAT_PROMPT = `You are an AI meeting assistant providing detailed, helpful answers during a live conversation.
+export const DEFAULT_DETAIL_PROMPT = `You are an AI meeting assistant. The user clicked on a suggestion during a live conversation and wants a detailed, comprehensive answer.
 
 {summary}
 Meeting transcript so far:
 {transcript}
 
-Provide a thorough, well-structured answer. Include specific facts, data, or examples when relevant. Use markdown formatting for code snippets, lists, and emphasis.`
+Provide a thorough, well-structured answer with:
+- Specific facts, data, or examples when relevant
+- Actionable next steps or recommendations
+- Code snippets, lists, or emphasis where appropriate (use markdown)
+- Keep it concise but thorough — this is meant to be read during a live meeting
+- If the suggestion was a question, answer it directly
+- If it was a fact-check, provide verification with sources or reasoning
+- If it was a talking point, expand with specific data and context`
+
+export const DEFAULT_CHAT_PROMPT = `You are an AI meeting assistant providing helpful answers during a live conversation.
+
+{summary}
+Meeting transcript so far:
+{transcript}
+
+Provide a clear, well-structured answer. Be concise but thorough. Use markdown formatting for code snippets, lists, and emphasis when helpful.`
 
 export const DEFAULT_SUMMARIZE_PROMPT = `Summarize the following conversation transcript into 2-3 concise sentences. Focus on:
 - Key topics discussed

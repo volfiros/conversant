@@ -38,6 +38,7 @@ export interface ChatMessage {
 export interface Settings {
   apiKey: string
   suggestionPrompt: string
+  detailPrompt: string
   chatPrompt: string
   summarizePrompt: string
   suggestionContextWindow: number
