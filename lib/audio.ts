@@ -1,17 +1,11 @@
+import { AUDIO_MIME_TYPES, LIMITS } from "./config"
+
 export function getSupportedMimeType(): string {
-  const types = [
-    "audio/webm;codecs=opus",
-    "audio/webm",
-    "audio/mp4",
-    "audio/ogg;codecs=opus",
-  ]
-  for (const type of types) {
+  for (const type of AUDIO_MIME_TYPES) {
     if (MediaRecorder.isTypeSupported(type)) return type
   }
   return ""
 }
-
-const MIN_BLOB_SIZE = 1024
 
 export function createMediaRecorder(
   stream: MediaStream,
@@ -24,7 +18,7 @@ export function createMediaRecorder(
   const recorder = new MediaRecorder(stream, options)
 
   recorder.ondataavailable = (e) => {
-    if (e.data.size > MIN_BLOB_SIZE) {
+    if (e.data.size > LIMITS.minBlobSize) {
       onDataAvailable(e.data)
     }
   }

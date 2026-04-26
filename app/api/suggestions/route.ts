@@ -1,59 +1,51 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import Groq from "groq-sdk"
-import { MODEL_LLM } from "@/lib/constants"
+import { MODEL_LLM, LLM_CONFIG, DEFAULT_CONTEXT } from "@/lib/config"
 import { DEFAULT_SUGGESTION_PROMPT } from "@/lib/prompts"
+import { interpolateTemplate } from "@/lib/template"
+import { suggestionsRequestSchema } from "@/lib/schemas"
+import { apiError } from "@/lib/api-error"
 
 export async function POST(req: NextRequest) {
   const apiKey = req.headers.get("x-groq-api-key")
-  if (!apiKey) {
-    return NextResponse.json({ error: "Missing API key" }, { status: 401 })
-  }
+  if (!apiKey) return apiError("Missing API key", 401)
 
   try {
     const body = await req.json()
-    const { transcript, customPrompt, contextWindow, summary } = body as {
-      transcript: { text: string; timestamp: number }[]
-      customPrompt?: string
-      contextWindow?: number
-      summary?: string
+    const parsed = suggestionsRequestSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError("Invalid request: " + parsed.error.issues.map((i) => i.message).join(", "), 400)
     }
+    const { transcript, customPrompt, contextWindow, summary } = parsed.data
 
-    if (!transcript || transcript.length === 0) {
-      return NextResponse.json({ error: "No transcript provided" }, { status: 400 })
-    }
-
-    const window = contextWindow || 10
+    const window = contextWindow || DEFAULT_CONTEXT.suggestionWindow
     const recentTranscript = transcript.slice(-window)
     const transcriptText = recentTranscript
       .map((l) => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.text}`)
       .join("\n")
 
-    const defaultPrompt = DEFAULT_SUGGESTION_PROMPT
-      .replace("{summary}", summary ? `Previous conversation context:\n${summary}` : "")
-      .replace("{transcript}", transcriptText)
-
-    const systemPrompt = customPrompt
-      ? customPrompt
-          .replaceAll("{summary}", summary ? `Previous conversation context:\n${summary}` : "")
-          .replaceAll("{transcript}", transcriptText)
-      : defaultPrompt
+    const template = customPrompt || DEFAULT_SUGGESTION_PROMPT
+    const systemPrompt = interpolateTemplate(template, {
+      summary: summary ? `Previous conversation context:\n${summary}` : "",
+      transcript: transcriptText,
+    })
 
     const groq = new Groq({ apiKey })
     const response = await groq.chat.completions.create({
       model: MODEL_LLM,
       messages: [{ role: "user", content: systemPrompt }],
       response_format: { type: "json_object" },
-      temperature: 0.7,
-      max_tokens: 1024,
+      temperature: LLM_CONFIG.suggestions.temperature,
+      max_tokens: LLM_CONFIG.suggestions.maxTokens,
     })
 
     const content = response.choices[0]?.message?.content || '{"suggestions":[]}'
-    const parsed = JSON.parse(content)
+    const parsed_content = JSON.parse(content)
 
-    return NextResponse.json(parsed)
+    return Response.json(parsed_content)
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Suggestion generation failed"
     const status = (error as { status?: number })?.status || 500
-    return NextResponse.json({ error: message }, { status })
+    return apiError(message, status)
   }
 }

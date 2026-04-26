@@ -1,20 +1,21 @@
 import { create } from "zustand"
 import type { TranscriptLine, SuggestionBatch, ChatMessage, Settings } from "./types"
-import { DEFAULT_SUGGESTION_PROMPT, DEFAULT_CHAT_PROMPT } from "./prompts"
-import { STORAGE_KEY } from "./constants"
+import { DEFAULT_SUGGESTION_PROMPT, DEFAULT_CHAT_PROMPT, DEFAULT_SUMMARIZE_PROMPT } from "./prompts"
+import { STORAGE_KEY, DEFAULT_CONTEXT, TIMING, LIMITS } from "./config"
 
-function getDefaultSettings(): Settings {
+export function getDefaultSettings(): Settings {
   return {
     apiKey: "",
     suggestionPrompt: DEFAULT_SUGGESTION_PROMPT,
     chatPrompt: DEFAULT_CHAT_PROMPT,
-    suggestionContextWindow: 10,
-    chatContextWindow: 20,
+    summarizePrompt: DEFAULT_SUMMARIZE_PROMPT,
+    suggestionContextWindow: DEFAULT_CONTEXT.suggestionWindow,
+    chatContextWindow: DEFAULT_CONTEXT.chatWindow,
   }
 }
 
 export function uid(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36)
+  return crypto.randomUUID()
 }
 
 interface AppState {
@@ -80,7 +81,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   abortController: null,
 
   startRecording: async () => {
-    set({ isRecording: true, countdown: 30 })
+    set({ isRecording: true, countdown: TIMING.suggestionCountdownSec })
   },
   stopRecording: () => {
     const { mediaRecorder } = get()
@@ -106,11 +107,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   suggestionBatches: [],
   suggestionLoading: false,
-  countdown: 30,
+  countdown: TIMING.suggestionCountdownSec,
   batchCounter: 0,
   suggestionAbortController: null,
   addSuggestionBatch: (batch) => {
-    const batches = [batch, ...get().suggestionBatches].slice(0, 20)
+    const batches = [batch, ...get().suggestionBatches].slice(0, LIMITS.maxSuggestionBatches)
     set({ suggestionBatches: batches, batchCounter: get().batchCounter + 1 })
   },
   setSuggestionLoading: (v) => set({ suggestionLoading: v }),
@@ -122,7 +123,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isChatStreaming: false,
   chatAbortController: null,
   addChatMessage: (msg) => {
-    set({ chatMessages: [...get().chatMessages, msg].slice(-100) })
+    set({ chatMessages: [...get().chatMessages, msg].slice(-LIMITS.maxChatMessages) })
   },
   updateChatMessage: (id, content, isStreaming) => {
     set({

@@ -1,60 +1,51 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import Groq from "groq-sdk"
-import { MODEL_LLM } from "@/lib/constants"
+import { MODEL_LLM, LLM_CONFIG, DEFAULT_CONTEXT } from "@/lib/config"
 import { DEFAULT_CHAT_PROMPT } from "@/lib/prompts"
+import { interpolateTemplate } from "@/lib/template"
+import { chatRequestSchema } from "@/lib/schemas"
+import { apiError } from "@/lib/api-error"
 
 export async function POST(req: NextRequest) {
   const apiKey = req.headers.get("x-groq-api-key")
-  if (!apiKey) {
-    return NextResponse.json({ error: "Missing API key" }, { status: 401 })
-  }
+  if (!apiKey) return apiError("Missing API key", 401)
 
   try {
     const body = await req.json()
-    const { question, transcript, chatHistory, customPrompt, contextWindow, summary } = body as {
-      question: string
-      transcript: { text: string; timestamp: number }[]
-      chatHistory?: { role: string; content: string }[]
-      customPrompt?: string
-      contextWindow?: number
-      summary?: string
+    const parsed = chatRequestSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError("Invalid request: " + parsed.error.issues.map((i) => i.message).join(", "), 400)
     }
+    const { question, transcript, chatHistory, customPrompt, contextWindow, summary } = parsed.data
 
-    if (!question) {
-      return NextResponse.json({ error: "No question provided" }, { status: 400 })
-    }
-
-    const window = contextWindow || 20
+    const window = contextWindow || DEFAULT_CONTEXT.chatWindow
     const recentTranscript = transcript.slice(-window)
     const transcriptText = recentTranscript
       .map((l) => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.text}`)
       .join("\n")
 
-    const historyText = (chatHistory || [])
-      .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-      .join("\n")
+    const template = customPrompt || DEFAULT_CHAT_PROMPT
+    const systemPrompt = interpolateTemplate(template, {
+      summary: summary ? `Previous conversation context:\n${summary}` : "",
+      transcript: transcriptText,
+    })
 
-    const defaultPrompt = DEFAULT_CHAT_PROMPT
-      .replace("{summary}", summary ? `Previous conversation context:\n${summary}` : "")
-      .replace("{transcript}", transcriptText)
-      .replace("{chatHistory}", historyText)
-      .replace("{question}", question)
-
-    const systemPrompt = customPrompt
-      ? customPrompt
-          .replaceAll("{summary}", summary ? `Previous conversation context:\n${summary}` : "")
-          .replaceAll("{transcript}", transcriptText)
-          .replaceAll("{chatHistory}", historyText)
-          .replaceAll("{question}", question)
-      : defaultPrompt
+    const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+      { role: "system", content: systemPrompt },
+      ...(chatHistory || []).map((m) => ({
+        role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
+        content: m.label ? `[${m.label}] ${m.content}` : m.content,
+      })),
+      { role: "user", content: question },
+    ]
 
     const groq = new Groq({ apiKey })
     const stream = await groq.chat.completions.create({
       model: MODEL_LLM,
-      messages: [{ role: "user", content: systemPrompt }],
+      messages,
       stream: true,
-      temperature: 0.7,
-      max_tokens: 2048,
+      temperature: LLM_CONFIG.chat.temperature,
+      max_tokens: LLM_CONFIG.chat.maxTokens,
     })
 
     const encoder = new TextEncoder()
@@ -85,6 +76,6 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Chat failed"
     const status = (error as { status?: number })?.status || 500
-    return NextResponse.json({ error: message }, { status })
+    return apiError(message, status)
   }
 }

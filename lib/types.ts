@@ -1,3 +1,9 @@
+export type ChatHistoryEntry = {
+  role: "user" | "assistant"
+  content: string
+  label?: string
+}
+
 export type SuggestionType = "question" | "talking" | "answer" | "fact"
 
 export interface TranscriptLine {
@@ -33,6 +39,7 @@ export interface Settings {
   apiKey: string
   suggestionPrompt: string
   chatPrompt: string
+  summarizePrompt: string
   suggestionContextWindow: number
   chatContextWindow: number
 }

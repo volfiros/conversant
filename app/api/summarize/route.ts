@@ -1,52 +1,49 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import Groq from "groq-sdk"
-import { MODEL_LLM } from "@/lib/constants"
+import { MODEL_LLM, LLM_CONFIG } from "@/lib/config"
+import { DEFAULT_SUMMARIZE_PROMPT } from "@/lib/prompts"
+import { interpolateTemplate } from "@/lib/template"
+import { summarizeRequestSchema } from "@/lib/schemas"
+import { apiError } from "@/lib/api-error"
 
 export async function POST(req: NextRequest) {
   const apiKey = req.headers.get("x-groq-api-key")
-  if (!apiKey) {
-    return NextResponse.json({ error: "Missing API key" }, { status: 401 })
-  }
+  if (!apiKey) return apiError("Missing API key", 401)
 
   try {
     const body = await req.json()
-    const { transcript } = body as {
-      transcript: { text: string; timestamp: number }[]
+    const parsed = summarizeRequestSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError("Invalid request: " + parsed.error.issues.map((i) => i.message).join(", "), 400)
     }
+    const { transcript, customPrompt } = parsed.data
 
-    if (!transcript || transcript.length === 0) {
-      return NextResponse.json({ summary: "" })
+    if (transcript.length === 0) {
+      return Response.json({ summary: "" })
     }
 
     const transcriptText = transcript
       .map((l) => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.text}`)
       .join("\n")
 
-    const prompt = `Summarize the following conversation transcript into 2-3 concise sentences. Focus on:
-- Key topics discussed
-- Important decisions or conclusions reached
-- Any unresolved questions or action items
-
-Transcript:
-${transcriptText}
-
-Respond with JSON: { "summary": "..." }`
+    const template = customPrompt || DEFAULT_SUMMARIZE_PROMPT
+    const prompt = interpolateTemplate(template, { transcript: transcriptText })
 
     const groq = new Groq({ apiKey })
     const response = await groq.chat.completions.create({
       model: MODEL_LLM,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
-      max_tokens: 256,
-      temperature: 0.3,
+      max_tokens: LLM_CONFIG.summarize.maxTokens,
+      temperature: LLM_CONFIG.summarize.temperature,
     })
 
     const content = response.choices[0]?.message?.content || '{"summary":""}'
-    const parsed = JSON.parse(content)
+    const parsed_content = JSON.parse(content)
 
-    return NextResponse.json({ summary: parsed.summary || "" })
+    return Response.json({ summary: parsed_content.summary || "" })
   } catch (error: unknown) {
     console.error("Summarization error:", error)
-    return NextResponse.json({ summary: "" })
+    return apiError("Summarization failed", 500)
   }
 }

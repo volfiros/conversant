@@ -4,6 +4,7 @@ export function useScrollToBottom<T extends HTMLElement>(deps: React.DependencyL
   const scrollRef = useRef<T | null>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
   const isNearBottomRef = useRef(true)
+  const lastDepToken = useRef("")
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current
@@ -21,6 +22,16 @@ export function useScrollToBottom<T extends HTMLElement>(deps: React.DependencyL
   }, [])
 
   useEffect(() => {
+    const depToken = deps.map((d) => {
+      if (Array.isArray(d)) return "arr:" + String(d.length)
+      if (typeof d === "string") return "str:" + String(d.length)
+      if (typeof d === "boolean" || typeof d === "number") return String(d)
+      return "obj"
+    }).join("|")
+
+    if (depToken === lastDepToken.current) return
+    lastDepToken.current = depToken
+
     const el = scrollRef.current
     if (!el || !isNearBottomRef.current) return
     el.scrollTop = el.scrollHeight

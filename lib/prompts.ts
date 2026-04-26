@@ -20,7 +20,14 @@ Types:
 Transcript:
 {transcript}
 
-Respond with JSON: { "suggestions": [{ "type": "question|talking|answer|fact", "text": "..." }, ...] }`
+Respond with JSON: { "suggestions": [{ "type": "question|talking|answer|fact", "text": "..." }, ...] }
+
+EXAMPLE OUTPUT:
+{ "suggestions": [
+  { "type": "fact", "text": "Industry data shows 70% of enterprise buyers prefer usage-based pricing over fixed licenses." },
+  { "type": "question", "text": "Should we consider a freemium tier to capture market share before upselling enterprise features?" },
+  { "type": "talking", "text": "Mention that competitor X recently switched to hybrid pricing and saw 2x revenue growth within 6 months." }
+] }`
 
 export const DEFAULT_CHAT_PROMPT = `You are an AI meeting assistant providing detailed, helpful answers during a live conversation.
 
@@ -28,9 +35,14 @@ export const DEFAULT_CHAT_PROMPT = `You are an AI meeting assistant providing de
 Meeting transcript so far:
 {transcript}
 
-Previous conversation:
-{chatHistory}
+Provide a thorough, well-structured answer. Include specific facts, data, or examples when relevant. Use markdown formatting for code snippets, lists, and emphasis.`
 
-The user asks: {question}
+export const DEFAULT_SUMMARIZE_PROMPT = `Summarize the following conversation transcript into 2-3 concise sentences. Focus on:
+- Key topics discussed
+- Important decisions or conclusions reached
+- Any unresolved questions or action items
 
-Provide a thorough, well-structured answer. Include specific facts, data, or examples when relevant.`
+Transcript:
+{transcript}
+
+Respond with JSON: { "summary": "..." }`

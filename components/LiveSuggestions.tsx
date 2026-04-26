@@ -1,17 +1,21 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useAppStore, uid } from "@/lib/store"
 import { useScrollToBottom } from "@/lib/useScrollToBottom"
 import { SuggestionCard } from "./SuggestionCard"
 import type { Suggestion, SuggestionBatch } from "@/lib/types"
-import { DEFAULT_SUGGESTION_PROMPT } from "@/lib/prompts"
+import { DEFAULT_SUGGESTION_PROMPT, DEFAULT_SUMMARIZE_PROMPT } from "@/lib/prompts"
+import { TIMING } from "@/lib/config"
 import { toast } from "sonner"
-import { RefreshCw, ChevronDown } from "lucide-react"
+import { RefreshCw } from "lucide-react"
+import { ScrollToBottomButton } from "./ScrollToBottom"
+import { trackApiResult } from "@/lib/api-metrics"
 
 async function fetchSummary(
   apiKey: string,
   transcript: { text: string; timestamp: number }[],
+  customPrompt?: string,
   signal?: AbortSignal
 ): Promise<string> {
   try {
@@ -21,7 +25,10 @@ async function fetchSummary(
         "Content-Type": "application/json",
         "x-groq-api-key": apiKey,
       },
-      body: JSON.stringify({ transcript }),
+      body: JSON.stringify({
+      transcript: transcript.map(({ text, timestamp }) => ({ text, timestamp })),
+      customPrompt,
+    }),
       signal,
     })
     if (!res.ok) return ""
@@ -46,7 +53,12 @@ async function fetchSuggestions(
       "Content-Type": "application/json",
       "x-groq-api-key": apiKey,
     },
-    body: JSON.stringify({ transcript, customPrompt, contextWindow, summary }),
+    body: JSON.stringify({
+      transcript: transcript.map(({ text, timestamp }) => ({ text, timestamp })),
+      customPrompt,
+      contextWindow,
+      summary,
+    }),
     signal,
   })
   if (!res.ok) {
@@ -55,6 +67,19 @@ async function fetchSuggestions(
   }
   const data = await res.json()
   return data.suggestions || []
+}
+
+function BatchTimestamp({ timestamp }: { timestamp: number }) {
+  const formatted = useMemo(
+    () =>
+      new Date(timestamp).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+    [timestamp]
+  )
+  return <>{formatted}</>
 }
 
 export function LiveSuggestions() {
@@ -80,6 +105,7 @@ export function LiveSuggestions() {
     useScrollToBottom<HTMLDivElement>([suggestionBatches])
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [showBanner, setShowBanner] = useState(true)
   const prevTranscriptLen = useRef(0)
 
@@ -88,6 +114,7 @@ export function LiveSuggestions() {
     const currentTranscript = state.transcript
     const realTranscript = currentTranscript.filter(l => !l.isSystem)
     if (realTranscript.length === 0 || !state.settings.apiKey) return
+    if (state.suggestionLoading) return
 
     const prev = state.suggestionAbortController
     if (prev) prev.abort()
@@ -100,40 +127,55 @@ export function LiveSuggestions() {
       const older = realTranscript.length > contextWindow ? realTranscript.slice(0, -contextWindow) : []
       const recent = realTranscript.length > contextWindow ? realTranscript.slice(-contextWindow) : realTranscript
 
-      let summary = state.transcriptSummary
-      if (older.length > 0) {
-        const fetchedSummary = await fetchSummary(state.settings.apiKey, older, controller.signal)
-        if (fetchedSummary) {
-          summary = fetchedSummary
-          setTranscriptSummary(fetchedSummary)
-        }
-      }
-
       const customPrompt = state.settings.suggestionPrompt !== DEFAULT_SUGGESTION_PROMPT
         ? state.settings.suggestionPrompt
         : undefined
 
-      const suggestions = await fetchSuggestions(
-        state.settings.apiKey,
-        recent,
-        customPrompt,
-        contextWindow,
-        summary,
-        controller.signal
+      let summary = state.transcriptSummary
+
+      const suggestionsPromise = fetchSuggestions(
+        state.settings.apiKey, recent, customPrompt, contextWindow, summary, controller.signal
       )
-      if (suggestions.length > 0) {
-        const batch: SuggestionBatch = {
-          id: uid(),
-          suggestions: suggestions.map((s) => ({ ...s, id: uid() })),
-          timestamp: Date.now(),
-          batchNumber: state.batchCounter + 1,
+
+      if (older.length > 0) {
+        const summaryPromise = fetchSummary(
+          state.settings.apiKey,
+          older,
+          state.settings.summarizePrompt !== DEFAULT_SUMMARIZE_PROMPT ? state.settings.summarizePrompt : undefined,
+          controller.signal
+        )
+        const [summaryResult, suggestions] = await Promise.all([summaryPromise, suggestionsPromise])
+        if (summaryResult) {
+          summary = summaryResult
+          setTranscriptSummary(summaryResult)
         }
-        addSuggestionBatch(batch)
-        setShowBanner(false)
-        setCountdown(30)
+        if (suggestions.length > 0) {
+          addSuggestionBatch({
+            id: uid(),
+            suggestions: suggestions.map((s) => ({ ...s, id: uid() })),
+            timestamp: Date.now(),
+            batchNumber: state.batchCounter + 1,
+          })
+          setShowBanner(false)
+          setCountdown(TIMING.suggestionCountdownSec)
+        }
+      } else {
+        const suggestions = await suggestionsPromise
+        if (suggestions.length > 0) {
+          addSuggestionBatch({
+            id: uid(),
+            suggestions: suggestions.map((s) => ({ ...s, id: uid() })),
+            timestamp: Date.now(),
+            batchNumber: state.batchCounter + 1,
+          })
+          setShowBanner(false)
+          setCountdown(TIMING.suggestionCountdownSec)
+        }
       }
       setLastSuggestionTranscriptLength(useAppStore.getState().transcript.length)
+      trackApiResult(true)
     } catch (err) {
+      trackApiResult(false)
       if (err instanceof Error && err.name === "AbortError") return
       console.error("Suggestion fetch error:", err)
       toast.error("Failed to fetch suggestions")
@@ -148,10 +190,16 @@ export function LiveSuggestions() {
         .slice(prevTranscriptLen.current)
         .some(line => !line.isSystem)
       if (hasNewRealTranscript) {
-        doFetch()
+        if (debounceRef.current) clearTimeout(debounceRef.current)
+        debounceRef.current = setTimeout(() => {
+          doFetch()
+        }, TIMING.debounceMs)
       }
     }
     prevTranscriptLen.current = transcript.length
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
   }, [transcript, doFetch])
 
   useEffect(() => {
@@ -167,7 +215,7 @@ export function LiveSuggestions() {
   }, [isRecording, transcript.length])
 
   const handleRefresh = () => {
-    setCountdown(30)
+    setCountdown(TIMING.suggestionCountdownSec)
     doFetch()
   }
 
@@ -207,11 +255,23 @@ export function LiveSuggestions() {
           </div>
         )}
         {suggestionBatches.length === 0 ? (
-          <div className="font-[family-name:var(--font-outfit)] text-sm text-white/30 text-center py-8 leading-relaxed">
-            {isRecording && transcript.length > 0 && transcript.every(l => l.isSystem)
-              ? "No new speech detected — suggestions will appear when speech is recognized."
-              : "Suggestions appear here once recording starts."}
-          </div>
+          suggestionLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="rounded-lg p-3 bg-white/[0.03] border border-white/[0.08] animate-pulse">
+                  <div className="h-3.5 w-20 bg-white/10 rounded mb-2" />
+                  <div className="h-3 w-full bg-white/5 rounded mb-1.5" />
+                  <div className="h-3 w-2/3 bg-white/5 rounded" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="font-[family-name:var(--font-outfit)] text-sm text-white/30 text-center py-8 leading-relaxed">
+              {isRecording && transcript.length > 0 && transcript.every(l => l.isSystem)
+                ? "No new speech detected — suggestions will appear when speech is recognized."
+                : "Suggestions appear here once recording starts."}
+            </div>
+          )
         ) : (
           suggestionBatches.map((batch, batchIdx) => (
             <div key={batch.id} className={batchIdx === 0 ? "animate-fade-in-up" : ""}>
@@ -230,27 +290,14 @@ export function LiveSuggestions() {
               ))}
               <div className="font-[family-name:var(--font-mono)] text-[10px] text-white/20 uppercase tracking-[0.1em] text-center py-1.5">
                 — Batch {batch.batchNumber} ·{" "}
-                {new Date(batch.timestamp).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                })}{" "}
+                <BatchTimestamp timestamp={batch.timestamp} />{" "}
                 —
               </div>
             </div>
           ))
         )}
       </div>
-      {showScrollButton && (
-        <button
-          onClick={scrollToBottom}
-          className="absolute bottom-4 right-4 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/70 hover:bg-white/20 hover:text-white transition-all duration-150 flex items-center justify-center shadow-lg"
-          aria-label="Scroll to bottom"
-          title="Scroll to bottom"
-        >
-          <ChevronDown size={16} />
-        </button>
-      )}
+      <ScrollToBottomButton show={showScrollButton} onClick={scrollToBottom} className="bottom-4 right-4" />
     </div>
   )
 }

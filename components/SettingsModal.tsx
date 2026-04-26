@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAppStore } from "@/lib/store"
-import { DEFAULT_SUGGESTION_PROMPT, DEFAULT_CHAT_PROMPT } from "@/lib/prompts"
+import { getDefaultSettings } from "@/lib/store"
 import {
   Dialog,
   DialogContent,
@@ -15,11 +15,17 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Settings, Eye, EyeOff, RotateCcw } from "lucide-react"
 
-export function SettingsModal() {
+export function SettingsModal({ onRegisterTrigger }: { onRegisterTrigger?: (openFn: () => void) => void }) {
   const { settings, updateSettings, resetSettings } = useAppStore()
   const [open, setOpen] = useState(false)
   const [showKey, setShowKey] = useState(false)
   const [localSettings, setLocalSettings] = useState(settings)
+
+  useEffect(() => {
+    if (onRegisterTrigger) {
+      onRegisterTrigger(() => setOpen(true))
+    }
+  }, [onRegisterTrigger])
 
   const handleOpen = (isOpen: boolean) => {
     if (isOpen) {
@@ -33,14 +39,12 @@ export function SettingsModal() {
     setOpen(false)
   }
 
+  const handleCancel = () => {
+    setOpen(false)
+  }
+
   const handleReset = () => {
-    const defaults = {
-      apiKey: "",
-      suggestionPrompt: DEFAULT_SUGGESTION_PROMPT,
-      chatPrompt: DEFAULT_CHAT_PROMPT,
-      suggestionContextWindow: 10,
-      chatContextWindow: 20,
-    }
+    const defaults = getDefaultSettings()
     setLocalSettings(defaults)
     resetSettings()
   }
@@ -105,6 +109,20 @@ export function SettingsModal() {
                 setLocalSettings({ ...localSettings, chatPrompt: e.target.value })
               }
               rows={6}
+              className="bg-white/[0.03] border-white/[0.08] text-white text-xs focus:border-accent/50 transition-all duration-150"
+            />
+          </div>
+
+          <div>
+            <label className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em] text-white/40 mb-1.5 block">
+              Summarize Prompt
+            </label>
+            <Textarea
+              value={localSettings.summarizePrompt}
+              onChange={(e) =>
+                setLocalSettings({ ...localSettings, summarizePrompt: e.target.value })
+              }
+              rows={4}
               className="bg-white/[0.03] border-white/[0.08] text-white text-xs focus:border-accent/50 transition-all duration-150"
             />
           </div>

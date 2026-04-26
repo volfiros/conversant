@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAppStore } from "@/lib/store"
-import { STORAGE_KEY } from "@/lib/constants"
+import { STORAGE_KEY } from "@/lib/config"
 import { TopBar } from "@/components/TopBar"
 import { MicTranscript } from "@/components/MicTranscript"
 import { LiveSuggestions } from "@/components/LiveSuggestions"

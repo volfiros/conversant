@@ -7,7 +7,9 @@ import { ChatMessage } from "./ChatMessage"
 import { SUGGESTION_TYPE_LABELS } from "@/lib/types"
 import type { SuggestionType } from "@/lib/types"
 import { toast } from "sonner"
-import { Send, ChevronDown } from "lucide-react"
+import { Send } from "lucide-react"
+import { ScrollToBottomButton } from "./ScrollToBottom"
+import { trackApiResult } from "@/lib/api-metrics"
 
 async function streamChat(
   apiKey: string,
@@ -26,7 +28,14 @@ async function streamChat(
       "Content-Type": "application/json",
       "x-groq-api-key": apiKey,
     },
-    body: JSON.stringify({ question, transcript, chatHistory, customPrompt, contextWindow, summary }),
+    body: JSON.stringify({
+      question,
+      transcript: transcript.map(({ text, timestamp }) => ({ text, timestamp })),
+      chatHistory,
+      customPrompt,
+      contextWindow,
+      summary,
+    }),
     signal,
   })
 
@@ -127,9 +136,13 @@ export function ChatPanel() {
     setChatAbortController(controller)
 
     let accumulated = ""
+    let buffer = ""
+    let rafId: number | null = null
+
     const history = chatMessages.slice(-20).map((m) => ({
       role: m.role,
       content: m.content,
+      label: m.label,
     }))
 
     try {
@@ -142,13 +155,26 @@ export function ChatPanel() {
         settings.chatContextWindow,
         transcriptSummary,
         (chunk) => {
-          accumulated += chunk
-          updateChatMessage(assistantId, accumulated, true)
+          buffer += chunk
+          if (!rafId) {
+            rafId = requestAnimationFrame(() => {
+              accumulated += buffer
+              buffer = ""
+              rafId = null
+              updateChatMessage(assistantId, accumulated, true)
+            })
+          }
         },
         controller.signal
       )
+      if (rafId) {
+        cancelAnimationFrame(rafId)
+        accumulated += buffer
+      }
       updateChatMessage(assistantId, accumulated, false)
+      trackApiResult(true)
     } catch (err) {
+      trackApiResult(false)
       if (err instanceof Error && err.name === "AbortError") {
         updateChatMessage(assistantId, accumulated, false)
         return
@@ -238,16 +264,7 @@ export function ChatPanel() {
           <Send size={14} />
         </button>
       </div>
-      {showScrollButton && (
-        <button
-          onClick={scrollToBottom}
-          className="absolute bottom-16 right-4 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/70 hover:bg-white/20 hover:text-white transition-all duration-150 flex items-center justify-center shadow-lg"
-          aria-label="Scroll to bottom"
-          title="Scroll to bottom"
-        >
-          <ChevronDown size={16} />
-        </button>
-      )}
+      <ScrollToBottomButton show={showScrollButton} onClick={scrollToBottom} className="bottom-16 right-4" />
     </div>
   )
 }

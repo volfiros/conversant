@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useRef } from "react"
 import { useAppStore } from "@/lib/store"
 import { useScrollToBottom } from "@/lib/useScrollToBottom"
-import { getSupportedMimeType, createMediaRecorder } from "@/lib/audio"
 import { TranscriptLineItem } from "./TranscriptLine"
 import { isHallucination } from "@/lib/transcribe-filter"
+import { getSupportedMimeType, createMediaRecorder } from "@/lib/audio"
+import { TIMING } from "@/lib/config"
 import { toast } from "sonner"
-import { Mic, MicOff, ChevronDown } from "lucide-react"
+import { Mic, MicOff } from "lucide-react"
+import { ScrollToBottomButton } from "./ScrollToBottom"
 
 function getAudioExtension(blob: Blob): string {
   const type = blob.type.toLowerCase()
@@ -84,6 +86,9 @@ export function MicTranscript() {
     processingRef.current = true
 
     while (queueRef.current.length > 0) {
+      if (queueRef.current.length > TIMING.queueDepthWarn) {
+        console.warn(`[Transcript] Queue depth: ${queueRef.current.length} segments pending transcription`)
+      }
       const blob = queueRef.current.shift()!
       try {
         const text = await transcribeBlob(blob, settings.apiKey, abortRef.current?.signal)
@@ -159,7 +164,7 @@ export function MicTranscript() {
           recorderRef.current = next
           setMediaRecorder(next)
         }
-      }, 30000)
+      }, TIMING.segmentIntervalMs)
     } catch (err) {
       if (err instanceof DOMException && err.name === "NotAllowedError") {
         toast.error("Microphone permission denied. Please allow access.")
@@ -207,23 +212,45 @@ export function MicTranscript() {
             No transcript yet — start the mic.
           </div>
         ) : (
-          transcript.map((line, idx) => (
-            <div key={line.id} className={`stagger-${Math.min(idx + 1, 5)}`}>
-              <TranscriptLineItem text={line.text} timestamp={line.timestamp} isSystem={line.isSystem} />
-            </div>
-          ))
+          (() => {
+            const merged: Array<{ line: typeof transcript[0]; count: number }> = []
+            let noSpeechCount = 0
+            for (let i = 0; i < transcript.length; i++) {
+              const line = transcript[i]
+              if (line.isSystem && line.text === "No speech detected in this segment") {
+                noSpeechCount++
+              } else {
+                if (noSpeechCount > 0) {
+                  const baseLine = transcript[i - noSpeechCount]
+                  if (baseLine) {
+                    merged.push({
+                      line: { ...baseLine, text: noSpeechCount === 1 ? "No speech detected in this segment" : `No speech detected (${noSpeechCount} segments)` },
+                      count: noSpeechCount,
+                    })
+                  }
+                  noSpeechCount = 0
+                }
+                merged.push({ line, count: 0 })
+              }
+            }
+            if (noSpeechCount > 0) {
+              const baseLine = transcript[transcript.length - noSpeechCount]
+              if (baseLine) {
+                merged.push({
+                  line: { ...baseLine, text: noSpeechCount === 1 ? "No speech detected in this segment" : `No speech detected (${noSpeechCount} segments)` },
+                  count: noSpeechCount,
+                })
+              }
+            }
+            return merged.map(({ line }, idx) => (
+              <div key={line.id} className={`stagger-${Math.min(idx + 1, 5)}`}>
+                <TranscriptLineItem text={line.text} timestamp={line.timestamp} isSystem={line.isSystem} />
+              </div>
+            ))
+          })()
         )}
       </div>
-      {showScrollButton && (
-        <button
-          onClick={scrollToBottom}
-          className="absolute bottom-4 right-4 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/70 hover:bg-white/20 hover:text-white transition-all duration-150 flex items-center justify-center shadow-lg"
-          aria-label="Scroll to bottom"
-          title="Scroll to bottom"
-        >
-          <ChevronDown size={16} />
-        </button>
-      )}
+      <ScrollToBottomButton show={showScrollButton} onClick={scrollToBottom} className="bottom-4 right-4" />
     </div>
   )
 }

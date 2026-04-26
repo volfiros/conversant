@@ -1,8 +1,52 @@
 "use client"
 
+import { useState, useRef } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import rehypeHighlight from "rehype-highlight"
+import { markdownComponents } from "@/lib/markdown-components"
 import type { Components } from "react-markdown"
+import { Copy, Check } from "lucide-react"
+import "highlight.js/styles/github-dark.css"
+
+const baseComponents = { ...markdownComponents }
+
+function PreBlock({ children }: { children: React.ReactNode }) {
+  const [copied, setCopied] = useState(false)
+
+  const extractText = (node: React.ReactNode): string => {
+    if (typeof node === "string") return node
+    if (typeof node === "number") return String(node)
+    if (!node || typeof node !== "object") return ""
+    if (Array.isArray(node)) return node.map(extractText).join("")
+    const props = (node as { props?: { children?: React.ReactNode } }).props
+    if (props?.children) return extractText(props.children)
+    return ""
+  }
+
+  const code = extractText(children)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="relative group my-2">
+      <pre className="bg-black/40 rounded-md p-3 overflow-x-auto text-xs font-mono !mt-0 !mb-0">
+        {children}
+      </pre>
+      <button
+        onClick={handleCopy}
+        className="absolute top-2 right-2 p-1.5 rounded-md bg-white/10 hover:bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-white/70 hover:text-white"
+        aria-label="Copy code"
+      >
+        {copied ? <Check size={14} /> : <Copy size={14} />}
+      </button>
+    </div>
+  )
+}
 
 interface ChatMessageProps {
   role: "user" | "assistant"
@@ -11,41 +55,35 @@ interface ChatMessageProps {
   isStreaming?: boolean
 }
 
-const markdownComponents: Components = {
-  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-  strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
-  code: ({ children }) => (
-    <code className="bg-white/10 px-1.5 py-0.5 rounded text-accent text-xs font-mono">
-      {children}
-    </code>
-  ),
-  pre: ({ children }) => (
-    <pre className="bg-black/40 rounded-md p-3 overflow-x-auto text-xs font-mono my-2">
-      {children}
-    </pre>
-  ),
-  ul: ({ children }) => <ul className="list-disc pl-4 space-y-1">{children}</ul>,
-  ol: ({ children }) => <ol className="list-decimal pl-4 space-y-1">{children}</ol>,
-  h3: ({ children }) => <h3 className="font-semibold text-white mt-3 mb-1">{children}</h3>,
-  h4: ({ children }) => <h4 className="font-semibold text-white mt-3 mb-1">{children}</h4>,
-  table: ({ children }) => (
-    <div className="overflow-x-auto my-2 -mx-1 max-w-full">
-      <table className="min-w-full text-xs border-collapse">{children}</table>
-    </div>
-  ),
-  thead: ({ children }) => <thead className="bg-white/5">{children}</thead>,
-  th: ({ children }) => (
-    <th className="border border-white/10 px-2 py-1 text-left text-white/70 whitespace-nowrap">
-      {children}
-    </th>
-  ),
-  td: ({ children }) => (
-    <td className="border border-white/10 px-2 py-1 whitespace-nowrap">{children}</td>
-  ),
-  tr: ({ children }) => <tr className="even:bg-white/[0.02]">{children}</tr>,
+function useDebouncedContent(content: string, isStreaming: boolean): string {
+  const [debounced, setDebounced] = useState(content)
+  const rafRef = useRef<number | null>(null)
+  const latestRef = useRef(content)
+
+  latestRef.current = content
+
+  if (!isStreaming) {
+    return content
+  }
+
+  if (!rafRef.current) {
+    rafRef.current = requestAnimationFrame(() => {
+      setDebounced(latestRef.current)
+      rafRef.current = null
+    })
+  }
+
+  return debounced
+}
+
+const components: Components = {
+  ...markdownComponents,
+  pre: ({ children }) => <PreBlock>{children}</PreBlock>,
 }
 
 export function ChatMessage({ role, content, label, isStreaming }: ChatMessageProps) {
+  const debouncedContent = useDebouncedContent(content, !!isStreaming)
+
   return (
     <div className={`mb-3.5 ${role === "user" ? "animate-slide-in-left" : "animate-slide-in-right"}`}>
       <div className="font-[family-name:var(--font-mono)] text-[9px] uppercase tracking-[0.1em] text-white/40 mb-1">
@@ -63,8 +101,12 @@ export function ChatMessage({ role, content, label, isStreaming }: ChatMessagePr
         }`}
       >
         {role === "assistant" ? (
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-            {content}
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeHighlight]}
+            components={components}
+          >
+            {isStreaming ? debouncedContent : content}
           </ReactMarkdown>
         ) : (
           <span className="font-[family-name:var(--font-outfit)]">{content}</span>

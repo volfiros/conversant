@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAppStore } from "@/lib/store"
-import { STORAGE_KEY } from "@/lib/constants"
+import { STORAGE_KEY } from "@/lib/config"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Eye, EyeOff, Loader2 } from "lucide-react"

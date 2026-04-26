@@ -1,6 +1,15 @@
 "use client"
 
+import { useMemo } from "react"
 import { Info } from "lucide-react"
+
+function formatTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  })
+}
 
 interface TranscriptLineProps {
   text: string
@@ -9,11 +18,7 @@ interface TranscriptLineProps {
 }
 
 export function TranscriptLineItem({ text, timestamp, isSystem }: TranscriptLineProps) {
-  const time = new Date(timestamp).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  })
+  const time = useMemo(() => formatTime(timestamp), [timestamp])
 
   if (isSystem) {
     return (
