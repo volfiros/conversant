@@ -202,7 +202,7 @@ export function LiveSuggestions() {
   }, [transcript, doFetch])
 
   useEffect(() => {
-    if (isRecording && transcript.length > 0 && !timerRef.current) {
+    if (isRecording && !timerRef.current) {
       timerRef.current = setInterval(() => {
         useAppStore.getState().decrementCountdown()
       }, 1000)
@@ -211,7 +211,7 @@ export function LiveSuggestions() {
       clearInterval(timerRef.current)
       timerRef.current = null
     }
-  }, [isRecording, transcript.length])
+  }, [isRecording])
 
   useEffect(() => {
     setOnCountdownZero(() => () => {

@@ -53,6 +53,7 @@ export function MicTranscript() {
     setMediaRecorder,
     setAbortController,
     setForceTranscribe,
+    countdown,
   } = useAppStore()
 
   const { scrollRef, showScrollButton, handleScroll, scrollToBottom } =
@@ -198,7 +199,7 @@ export function MicTranscript() {
           1. Mic & Transcript
         </span>
         <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.15em] uppercase text-white/40">
-          {isRecording ? "● recording" : "idle"}
+          {isRecording ? `● recording · next in ${countdown}s` : "idle"}
         </span>
       </header>
       <div className="flex items-center gap-2.5 px-3.5 py-3.5">
@@ -215,7 +216,7 @@ export function MicTranscript() {
         </button>
         <div className="font-[family-name:var(--font-outfit)] text-sm text-white/50">
           {isRecording
-            ? "Listening… transcript updates every 30s."
+            ? `Listening… next segment in ${countdown}s.`
             : "Click mic to start. Transcript appends every ~30s."}
         </div>
       </div>
